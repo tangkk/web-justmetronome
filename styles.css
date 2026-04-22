@@ -249,6 +249,10 @@ button {
   cursor: pointer;
   font-size: 15px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
 .beat-stack {
