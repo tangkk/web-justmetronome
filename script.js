@@ -44,7 +44,6 @@ const els = {
   ringProgress: document.getElementById('ringProgress'),
   beatsMinusBtn: document.getElementById('beatsMinusBtn'),
   beatsPlusBtn: document.getElementById('beatsPlusBtn'),
-  beatsValue: document.getElementById('beatsValue'),
   beatStack: document.getElementById('beatStack'),
   beatOptStack: document.getElementById('beatOptStack'),
   volumeSlider: document.getElementById('volumeSlider'),
@@ -219,7 +218,6 @@ function clamp(n, min, max) {
 
 function render() {
   els.tempoField.textContent = String(state.bpm);
-  els.beatsValue.textContent = String(state.numBeats);
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
   els.volumeSlider.value = String(state.volume);
   els.playHint.textContent = '';
