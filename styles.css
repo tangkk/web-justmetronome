@@ -235,11 +235,6 @@ button {
   font-size: 12px;
 }
 
-.sound-label {
-  font-size: 10px;
-  color: var(--muted);
-}
-
 .play-hint {
   margin-top: 13px;
   text-align: center;

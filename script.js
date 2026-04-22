@@ -49,7 +49,6 @@ const els = {
   beatOptStack: document.getElementById('beatOptStack'),
   tapTempoBtn: document.getElementById('tapTempoBtn'),
   firstBeatBtn: document.getElementById('firstBeatBtn'),
-  soundLabel: document.getElementById('soundLabel'),
   volumeSlider: document.getElementById('volumeSlider'),
   playHint: document.getElementById('playHint'),
 };
@@ -224,7 +223,6 @@ function render() {
   els.tempoField.textContent = String(state.bpm);
   els.beatsValue.textContent = String(state.numBeats);
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
-  els.soundLabel.textContent = `Sound: ${metSoundList[state.playState].label}`;
   els.volumeSlider.value = String(state.volume);
   els.firstBeatBtn.textContent = `1st: ${['Normal', 'Muted', 'Accent'][state.firstBeatState]}`;
   els.playHint.textContent = state.isPlaying ? 'Press Space to stop' : 'Press Space to start';
