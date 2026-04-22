@@ -40,6 +40,7 @@ const state = {
   focusTimerDragActive: false,
   focusTimerDragStartY: 0,
   focusTimerDragInitialMinutes: 25,
+  focusTimerLongPressTimeoutId: null,
   audioUnlocked: false,
   togglePlayBusy: false,
 };
@@ -568,27 +569,49 @@ function attachEvents() {
   els.tapTempoBtn.addEventListener('click', doTapTempo);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
   let focusTimerDragMoved = false;
+  let focusTimerLongPressTriggered = false;
+  const clearFocusTimerLongPress = () => {
+    if (state.focusTimerLongPressTimeoutId) {
+      clearTimeout(state.focusTimerLongPressTimeoutId);
+      state.focusTimerLongPressTimeoutId = null;
+    }
+  };
+
   els.focusTimerBox.addEventListener('pointerdown', (e) => {
     els.focusTimerBox.setPointerCapture(e.pointerId);
     focusTimerDragMoved = false;
+    focusTimerLongPressTriggered = false;
     state.focusTimerDragActive = true;
     state.focusTimerDragStartY = e.clientY;
     state.focusTimerDragInitialMinutes = Math.max(1, Math.round(state.focusTimerSeconds / 60));
+    clearFocusTimerLongPress();
+    state.focusTimerLongPressTimeoutId = window.setTimeout(() => {
+      if (!focusTimerDragMoved && state.focusTimerDragActive) {
+        focusTimerLongPressTriggered = true;
+        resetFocusTimer();
+      }
+    }, 600);
   });
   els.focusTimerBox.addEventListener('pointermove', (e) => {
     if (!state.focusTimerDragActive) return;
     const deltaY = state.focusTimerDragStartY - e.clientY;
-    if (Math.abs(deltaY) > 4) focusTimerDragMoved = true;
+    if (Math.abs(deltaY) > 4) {
+      focusTimerDragMoved = true;
+      clearFocusTimerLongPress();
+    }
     const minuteDelta = deltaY / 20;
     setFocusTimerMinutes(state.focusTimerDragInitialMinutes + minuteDelta);
   });
   els.focusTimerBox.addEventListener('pointerup', () => {
     const wasDragging = focusTimerDragMoved;
+    const wasLongPress = focusTimerLongPressTriggered;
     state.focusTimerDragActive = false;
-    if (!wasDragging) toggleFocusTimer();
+    clearFocusTimerLongPress();
+    if (!wasDragging && !wasLongPress) toggleFocusTimer();
   });
   els.focusTimerBox.addEventListener('pointercancel', () => {
     state.focusTimerDragActive = false;
+    clearFocusTimerLongPress();
   });
   els.focusTimerBox.addEventListener('dblclick', (e) => {
     e.preventDefault();
