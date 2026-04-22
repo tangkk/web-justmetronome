@@ -195,6 +195,8 @@ button {
   flex-wrap: wrap;
   justify-content: center;
   gap: 2px;
+  position: relative;
+  left: -4px;
 }
 
 .primary-row {
