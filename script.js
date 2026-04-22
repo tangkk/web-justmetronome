@@ -44,6 +44,7 @@ const state = {
 };
 
 const els = {
+  mobileUnsupported: document.getElementById('mobileUnsupported'),
   app: document.querySelector('.app'),
   focusTimerBox: document.getElementById('focusTimerBox'),
   focusTimerDisplay: document.getElementById('focusTimerDisplay'),
@@ -661,5 +662,14 @@ function attachEvents() {
   });
 }
 
-render();
-attachEvents();
+function isMobileUnsupported() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+if (isMobileUnsupported()) {
+  els.mobileUnsupported.hidden = false;
+  document.querySelector('.device-shell').style.display = 'none';
+} else {
+  render();
+  attachEvents();
+}
