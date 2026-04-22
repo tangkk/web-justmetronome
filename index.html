@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="app">
+    <div class="device-shell">
+      <main class="app">
       <div class="prefs-row">
         <button id="playStateBtn" class="icon-btn sound-btn" aria-label="Change sound">⍥</button>
         <button id="prefsResetBtn" class="icon-btn reset-btn" aria-label="Reset preferences">⌾</button>
@@ -37,7 +38,10 @@
         <button id="firstBeatBtn" class="ghost-btn">1st: Normal</button>
         <div id="soundLabel" class="sound-label">Sound: Just Click</div>
       </div>
+
+      <div id="playHint" class="play-hint">Tap center to start</div>
     </main>
+    </div>
 
     <script type="module" src="./script.js"></script>
   </body>

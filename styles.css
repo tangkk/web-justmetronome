@@ -23,6 +23,20 @@ body {
 
 body {
   min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.device-shell {
+  width: 100%;
+  max-width: 462px;
+  border: 2px solid #1f1f1f;
+  border-radius: 42px;
+  padding: 10px;
+  background: #f7f7f7;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.12);
 }
 
 button {
@@ -32,11 +46,13 @@ button {
 .app {
   width: 100%;
   max-width: 414px;
-  min-height: 100vh;
+  min-height: 896px;
   margin: 0 auto;
   position: relative;
   padding: 177px 24px 48px;
   overflow: hidden;
+  background: var(--bg);
+  border-radius: 32px;
 }
 
 .prefs-row {
@@ -110,10 +126,20 @@ button {
   top: 60px;
   width: 100px;
   height: 100px;
-  border: 0;
+  border: 1px dashed transparent;
   background: transparent;
   cursor: pointer;
   z-index: 2;
+  border-radius: 18px;
+}
+
+.tempo-button:hover {
+  border-color: #d8d8d8;
+}
+
+.app.is-playing .tempo-button {
+  border-color: #000;
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .tempo-field {
@@ -127,6 +153,8 @@ button {
   line-height: 1;
   font-variant-numeric: tabular-nums;
   user-select: none;
+  pointer-events: none;
+  z-index: 3;
 }
 
 .stepper-row {
@@ -218,6 +246,17 @@ button {
 .sound-label {
   font-size: 14px;
   color: var(--muted);
+}
+
+.play-hint {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.app.is-playing .play-hint {
+  color: var(--fg);
 }
 
 @media (max-width: 414px) {

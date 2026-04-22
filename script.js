@@ -37,6 +37,7 @@ const state = {
 };
 
 const els = {
+  app: document.querySelector('.app'),
   playStateBtn: document.getElementById('playStateBtn'),
   prefsResetBtn: document.getElementById('prefsResetBtn'),
   tempoButton: document.getElementById('tempoButton'),
@@ -50,6 +51,7 @@ const els = {
   tapTempoBtn: document.getElementById('tapTempoBtn'),
   firstBeatBtn: document.getElementById('firstBeatBtn'),
   soundLabel: document.getElementById('soundLabel'),
+  playHint: document.getElementById('playHint'),
 };
 
 class WebMetronome {
@@ -228,6 +230,8 @@ function render() {
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
   els.soundLabel.textContent = `Sound: ${metSoundList[state.playState].label}`;
   els.firstBeatBtn.textContent = `1st: ${['Normal', 'Muted', 'Accent'][state.firstBeatState]}`;
+  els.playHint.textContent = state.isPlaying ? 'Tap center to stop' : 'Tap center to start';
+  els.app.classList.toggle('is-playing', state.isPlaying);
   renderBeats();
 }
 
@@ -316,8 +320,10 @@ function adjustBeats(delta) {
 async function togglePlay() {
   if (state.isPlaying) {
     metronome.stop();
+    render();
   } else {
     await metronome.start();
+    render();
   }
 }
 
