@@ -374,6 +374,7 @@ function clearCurrentBeat() {
 function attachEvents() {
   els.playStateBtn.addEventListener('click', changeSound);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
+  els.tempoButton.addEventListener('click', togglePlay);
   els.tapTempoBtn.addEventListener('click', doTapTempo);
   els.firstBeatBtn.addEventListener('click', cycleFirstBeatTap);
   els.volumeSlider.addEventListener('input', (e) => {

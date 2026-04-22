@@ -130,7 +130,11 @@ button {
   background: transparent;
   z-index: 2;
   border-radius: 13px;
-  pointer-events: none;
+  cursor: pointer;
+}
+
+.tempo-button:hover {
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .tempo-field {
