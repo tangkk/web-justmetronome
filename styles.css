@@ -58,24 +58,24 @@ button {
 
 .timer-box {
   position: absolute;
-  top: 24px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  min-width: 106px;
-  height: 34px;
-  padding: 0 14px;
+  min-width: 140px;
+  height: 42px;
+  padding: 0 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #000;
-  border-radius: 8px;
+  border: 2.5px solid #000;
+  border-radius: 10px;
   background: #fff;
   color: #000;
   cursor: pointer;
 }
 
 .timer-display {
-  font-size: 19px;
+  font-size: 24px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
@@ -84,7 +84,7 @@ button {
 
 .prefs-row {
   position: absolute;
-  top: 124px;
+  top: 132px;
   left: 32.5px;
   right: 32.5px;
   display: flex;
@@ -118,7 +118,7 @@ button {
   position: relative;
   width: 154px;
   height: 154px;
-  margin: 155px auto 0;
+  margin: 162px auto 0;
   cursor: pointer;
 }
 
