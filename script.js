@@ -519,7 +519,6 @@ function attachEvents() {
   });
   els.tempoButton.addEventListener('click', (e) => {
     e.stopPropagation();
-    togglePlay();
   });
   els.volumeSlider.addEventListener('input', (e) => {
     state.volume = Number(e.target.value);
@@ -544,21 +543,39 @@ function attachEvents() {
 
   els.tempoStage = document.querySelector('.tempo-stage');
   let dragMoved = false;
+  let touchStartY = 0;
+
+  const finishTempoTap = async () => {
+    const wasDragging = dragMoved;
+    endDrag();
+    if (!wasDragging) await togglePlay();
+  };
+
   els.tempoStage.addEventListener('pointerdown', (e) => {
-    els.tempoStage.setPointerCapture(e.pointerId);
+    els.tempoStage.setPointerCapture?.(e.pointerId);
     dragMoved = false;
+    touchStartY = e.clientY;
     beginDrag(e.clientY);
   });
   els.tempoStage.addEventListener('pointermove', (e) => {
-    if (state.dragActive && Math.abs(e.clientY - state.dragStartY) > 4) dragMoved = true;
+    if (state.dragActive && Math.abs(e.clientY - touchStartY) > 4) dragMoved = true;
     moveDrag(e.clientY);
   });
-  els.tempoStage.addEventListener('pointerup', () => {
-    const wasDragging = dragMoved;
-    endDrag();
-    if (!wasDragging) togglePlay();
-  });
+  els.tempoStage.addEventListener('pointerup', finishTempoTap);
   els.tempoStage.addEventListener('pointercancel', endDrag);
+
+  els.tempoStage.addEventListener('touchstart', (e) => {
+    const y = e.touches[0]?.clientY ?? 0;
+    dragMoved = false;
+    touchStartY = y;
+    beginDrag(y);
+  }, { passive: true });
+  els.tempoStage.addEventListener('touchmove', (e) => {
+    const y = e.touches[0]?.clientY ?? 0;
+    if (state.dragActive && Math.abs(y - touchStartY) > 4) dragMoved = true;
+    moveDrag(y);
+  }, { passive: true });
+  els.tempoStage.addEventListener('touchend', finishTempoTap);
 
   els.app.addEventListener('click', (e) => {
     const interactive = e.target.closest('button, input, label, .tempo-stage, .stepper-row, .beat-stack');
