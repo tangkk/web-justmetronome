@@ -34,11 +34,14 @@ body {
   position: fixed;
   inset: 0;
   background: #fff;
-  display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   z-index: 9999;
+}
+
+.mobile-unsupported:not([hidden]) {
+  display: flex;
 }
 
 .mobile-unsupported-box {
@@ -48,6 +51,7 @@ body {
   border-radius: 14px;
   padding: 20px 18px;
   text-align: center;
+  background: #fff;
 }
 
 .mobile-unsupported-title {
