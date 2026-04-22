@@ -374,7 +374,10 @@ function clearCurrentBeat() {
 function attachEvents() {
   els.playStateBtn.addEventListener('click', changeSound);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
-  els.tempoButton.addEventListener('click', togglePlay);
+  els.tempoButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePlay();
+  });
   els.tapTempoBtn.addEventListener('click', doTapTempo);
   els.firstBeatBtn.addEventListener('click', cycleFirstBeatTap);
   els.volumeSlider.addEventListener('input', (e) => {
@@ -399,12 +402,21 @@ function attachEvents() {
   };
 
   els.tempoStage = document.querySelector('.tempo-stage');
+  let dragMoved = false;
   els.tempoStage.addEventListener('pointerdown', (e) => {
     els.tempoStage.setPointerCapture(e.pointerId);
+    dragMoved = false;
     beginDrag(e.clientY);
   });
-  els.tempoStage.addEventListener('pointermove', (e) => moveDrag(e.clientY));
-  els.tempoStage.addEventListener('pointerup', endDrag);
+  els.tempoStage.addEventListener('pointermove', (e) => {
+    if (state.dragActive && Math.abs(e.clientY - state.dragStartY) > 4) dragMoved = true;
+    moveDrag(e.clientY);
+  });
+  els.tempoStage.addEventListener('pointerup', () => {
+    const wasDragging = dragMoved;
+    endDrag();
+    if (!wasDragging) togglePlay();
+  });
   els.tempoStage.addEventListener('pointercancel', endDrag);
 
   window.addEventListener('keydown', (e) => {

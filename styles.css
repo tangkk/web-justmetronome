@@ -92,6 +92,7 @@ button {
   width: 154px;
   height: 154px;
   margin: 155px auto 0;
+  cursor: pointer;
 }
 
 .progress-ring {
@@ -133,7 +134,7 @@ button {
   cursor: pointer;
 }
 
-.tempo-button:hover {
+.tempo-stage:hover .tempo-button {
   background: rgba(0, 0, 0, 0.03);
 }
 
