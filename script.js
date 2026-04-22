@@ -40,6 +40,7 @@ const state = {
   focusTimerDragActive: false,
   focusTimerDragStartY: 0,
   focusTimerDragInitialMinutes: 25,
+  audioUnlocked: false,
 };
 
 const els = {
@@ -65,6 +66,7 @@ class WebMetronome {
     this.lookaheadMs = 25;
     this.scheduleAhead = 0.1;
     this.buffers = new Map();
+    this.htmlAudio = new Map();
   }
 
   async ensureAudio() {
@@ -80,7 +82,16 @@ class WebMetronome {
 
   async preloadCurrentBuffer() {
     const sound = metSoundList[state.playState];
-    if (!sound || !sound.file || this.buffers.has(sound.file)) return;
+    if (!sound || !sound.file) return;
+
+    if (!this.htmlAudio.has(sound.file)) {
+      const audio = new Audio(sound.file);
+      audio.preload = 'auto';
+      audio.playsInline = true;
+      this.htmlAudio.set(sound.file, audio);
+    }
+
+    if (this.buffers.has(sound.file)) return;
     const res = await fetch(sound.file);
     const arr = await res.arrayBuffer();
     const buffer = await this.audioCtx.decodeAudioData(arr.slice(0));
@@ -140,6 +151,19 @@ class WebMetronome {
     const ctx = this.audioCtx;
     const sound = metSoundList[state.playState];
     const buffer = sound?.file ? this.buffers.get(sound.file) : null;
+    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (isAppleMobile && sound?.file) {
+      const baseAudio = this.htmlAudio.get(sound.file);
+      if (baseAudio) {
+        const audio = baseAudio.cloneNode();
+        audio.volume = Math.min(1, (accent ? 1.6 : 1) * state.volume);
+        audio.playsInline = true;
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+        return;
+      }
+    }
 
     if (buffer) {
       const source = ctx.createBufferSource();
@@ -330,6 +354,7 @@ function adjustBeats(delta) {
 }
 
 async function togglePlay() {
+  await unlockAudio();
   if (state.isPlaying) {
     metronome.stop();
     render();
@@ -431,13 +456,38 @@ function toggleFocusTimer() {
 function playFocusTimerDing() {
   if (!state.focusTimerDing) {
     state.focusTimerDing = new Audio('assets/focus-ding.mp3');
+    state.focusTimerDing.preload = 'auto';
+    state.focusTimerDing.playsInline = true;
   }
   state.focusTimerDing.currentTime = 0;
   state.focusTimerDing.play().catch(() => {});
 }
 
+async function unlockAudio() {
+  if (state.audioUnlocked) return;
+  state.audioUnlocked = true;
+  try {
+    await metronome.ensureAudio();
+    if (!state.focusTimerDing) {
+      state.focusTimerDing = new Audio('assets/focus-ding.mp3');
+      state.focusTimerDing.preload = 'auto';
+      state.focusTimerDing.playsInline = true;
+    }
+    state.focusTimerDing.muted = true;
+    await state.focusTimerDing.play().catch(() => {});
+    state.focusTimerDing.pause();
+    state.focusTimerDing.currentTime = 0;
+    state.focusTimerDing.muted = false;
+  } catch {}
+}
+
 
 function attachEvents() {
+  const primeAudio = () => unlockAudio();
+  window.addEventListener('touchstart', primeAudio, { passive: true, once: true });
+  window.addEventListener('pointerdown', primeAudio, { passive: true, once: true });
+  window.addEventListener('click', primeAudio, { passive: true, once: true });
+
   els.playStateBtn.addEventListener('click', changeSound);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
   let focusTimerDragMoved = false;
