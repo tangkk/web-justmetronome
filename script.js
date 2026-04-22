@@ -47,7 +47,6 @@ const els = {
   beatsValue: document.getElementById('beatsValue'),
   beatStack: document.getElementById('beatStack'),
   beatOptStack: document.getElementById('beatOptStack'),
-  firstBeatBtn: document.getElementById('firstBeatBtn'),
   volumeSlider: document.getElementById('volumeSlider'),
   playHint: document.getElementById('playHint'),
 };
@@ -223,7 +222,6 @@ function render() {
   els.beatsValue.textContent = String(state.numBeats);
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
   els.volumeSlider.value = String(state.volume);
-  els.firstBeatBtn.textContent = `1st: ${['Normal', 'Muted', 'Accent'][state.firstBeatState]}`;
   els.playHint.textContent = state.isPlaying ? 'Press Space to stop' : 'Press Space to start';
   els.app.classList.toggle('is-playing', state.isPlaying);
   renderBeats();
@@ -377,7 +375,6 @@ function attachEvents() {
     e.stopPropagation();
     togglePlay();
   });
-  els.firstBeatBtn.addEventListener('click', cycleFirstBeatTap);
   els.volumeSlider.addEventListener('input', (e) => {
     state.volume = Number(e.target.value);
     saveState();
