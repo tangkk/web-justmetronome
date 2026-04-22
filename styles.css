@@ -71,8 +71,8 @@ body {
   border: 2px solid #1f1f1f;
   border-radius: 30px;
   padding: 7px;
-  background: #f7f7f7;
-  box-shadow: 0 12px 42px rgba(0, 0, 0, 0.12);
+  background: #fff;
+  box-shadow: none;
 }
 
 button {
