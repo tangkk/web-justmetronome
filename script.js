@@ -20,7 +20,7 @@ const defaultState = {
   beatMask: [0, 2],
   firstBeatState: 0,
   playState: 0,
-  volume: 0.7,
+  volume: 1,
 };
 
 const state = {
@@ -50,6 +50,7 @@ const els = {
   tapTempoBtn: document.getElementById('tapTempoBtn'),
   firstBeatBtn: document.getElementById('firstBeatBtn'),
   soundLabel: document.getElementById('soundLabel'),
+  volumeSlider: document.getElementById('volumeSlider'),
   playHint: document.getElementById('playHint'),
 };
 
@@ -139,7 +140,7 @@ class WebMetronome {
       const source = ctx.createBufferSource();
       const gain = ctx.createGain();
       source.buffer = buffer;
-      gain.gain.setValueAtTime((accent ? 3.2 : 2) * state.volume, time);
+      gain.gain.setValueAtTime((accent ? 6.4 : 4) * state.volume, time);
       source.connect(gain);
       gain.connect(ctx.destination);
       source.start(time);
@@ -194,7 +195,7 @@ function loadState() {
       beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter((n) => Number.isInteger(n)) : defaultState.beatMask,
       firstBeatState: [0, 1, 2].includes(parsed.firstBeatState) ? parsed.firstBeatState : 0,
       playState: Number.isInteger(parsed.playState) ? clamp(parsed.playState, 0, metSoundList.length - 1) : 0,
-      volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(1, parsed.volume)) : defaultState.volume,
+      volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(2, parsed.volume)) : defaultState.volume,
     };
   } catch {
     return { ...defaultState };
@@ -224,6 +225,7 @@ function render() {
   els.beatsValue.textContent = String(state.numBeats);
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
   els.soundLabel.textContent = `Sound: ${metSoundList[state.playState].label}`;
+  els.volumeSlider.value = String(state.volume);
   els.firstBeatBtn.textContent = `1st: ${['Normal', 'Muted', 'Accent'][state.firstBeatState]}`;
   els.playHint.textContent = state.isPlaying ? 'Press Space to stop' : 'Press Space to start';
   els.app.classList.toggle('is-playing', state.isPlaying);
@@ -376,6 +378,10 @@ function attachEvents() {
   els.prefsResetBtn.addEventListener('click', resetPrefs);
   els.tapTempoBtn.addEventListener('click', doTapTempo);
   els.firstBeatBtn.addEventListener('click', cycleFirstBeatTap);
+  els.volumeSlider.addEventListener('input', (e) => {
+    state.volume = Number(e.target.value);
+    saveState();
+  });
   els.beatsMinusBtn.addEventListener('click', () => adjustBeats(-1));
   els.beatsPlusBtn.addEventListener('click', () => adjustBeats(1));
 

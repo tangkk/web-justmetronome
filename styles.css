@@ -31,12 +31,12 @@ body {
 
 .device-shell {
   width: 100%;
-  max-width: 462px;
+  max-width: 324px;
   border: 2px solid #1f1f1f;
-  border-radius: 42px;
-  padding: 10px;
+  border-radius: 30px;
+  padding: 7px;
   background: #f7f7f7;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 42px rgba(0, 0, 0, 0.12);
 }
 
 button {
@@ -45,21 +45,21 @@ button {
 
 .app {
   width: 100%;
-  max-width: 414px;
-  min-height: 896px;
+  max-width: 290px;
+  min-height: 627px;
   margin: 0 auto;
   position: relative;
-  padding: 177px 24px 48px;
+  padding: 124px 17px 34px;
   overflow: hidden;
   background: var(--bg);
-  border-radius: 32px;
+  border-radius: 22px;
 }
 
 .prefs-row {
   position: absolute;
-  top: 177px;
-  left: 46.5px;
-  right: 46.5px;
+  top: 124px;
+  left: 32.5px;
+  right: 32.5px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -75,30 +75,30 @@ button {
 }
 
 .sound-btn {
-  width: 60.5px;
-  height: 72.5px;
-  font-size: 50px;
+  width: 42.35px;
+  height: 50.75px;
+  font-size: 35px;
   transform-origin: center;
 }
 
 .reset-btn {
-  width: 60.5px;
-  height: 86px;
-  font-size: 60px;
+  width: 42.35px;
+  height: 60.2px;
+  font-size: 42px;
 }
 
 .tempo-stage {
   position: relative;
-  width: 220px;
-  height: 220px;
-  margin: 221px auto 0;
+  width: 154px;
+  height: 154px;
+  margin: 155px auto 0;
 }
 
 .progress-ring {
   position: absolute;
   inset: 0;
-  width: 220px;
-  height: 220px;
+  width: 154px;
+  height: 154px;
   transform: rotate(-90deg);
   pointer-events: none;
 }
@@ -122,14 +122,14 @@ button {
 
 .tempo-button {
   position: absolute;
-  left: 60px;
-  top: 60px;
-  width: 100px;
-  height: 100px;
+  left: 42px;
+  top: 42px;
+  width: 70px;
+  height: 70px;
   border: 0;
   background: transparent;
   z-index: 2;
-  border-radius: 18px;
+  border-radius: 13px;
   pointer-events: none;
 }
 
@@ -138,9 +138,9 @@ button {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 100.5px;
+  width: 70px;
   text-align: center;
-  font-size: 60px;
+  font-size: 42px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   user-select: none;
@@ -149,9 +149,9 @@ button {
 }
 
 .stepper-row {
-  margin: 145px auto 0;
-  width: 150px;
-  height: 32px;
+  margin: 102px auto 0;
+  width: 105px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -161,21 +161,21 @@ button {
 }
 
 .stepper-btn {
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   border: 1px solid var(--line);
   background: #fff;
   color: var(--fg);
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 22px;
+  font-size: 15px;
   line-height: 1;
 }
 
 .beats-readout {
-  min-width: 24px;
+  min-width: 17px;
   text-align: center;
-  font-size: 18px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -191,11 +191,11 @@ button {
 }
 
 .primary-row {
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .secondary-row {
-  margin-top: 10px;
+  margin-top: 7px;
 }
 
 .beat-btn {
@@ -203,10 +203,10 @@ button {
   background: transparent;
   color: #0a66ff;
   padding: 0;
-  width: 24px;
-  height: 32px;
+  width: 17px;
+  height: 22px;
   cursor: pointer;
-  font-size: 30px;
+  font-size: 21px;
   line-height: 1;
 }
 
@@ -216,12 +216,12 @@ button {
 }
 
 .bottom-tools {
-  margin-top: 28px;
+  margin-top: 20px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 7px;
   color: var(--muted);
 }
 
@@ -230,19 +230,20 @@ button {
   background: #fff;
   color: var(--fg);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 4px 8px;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .sound-label {
-  font-size: 14px;
+  font-size: 10px;
   color: var(--muted);
 }
 
 .play-hint {
-  margin-top: 18px;
+  margin-top: 13px;
   text-align: center;
-  font-size: 14px;
+  font-size: 10px;
   color: var(--muted);
 }
 
@@ -254,14 +255,26 @@ button {
   font-weight: 500;
 }
 
+.volume-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.volume-control input[type='range'] {
+  width: 72px;
+}
+
 @media (max-width: 414px) {
   .app {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .prefs-row {
-    left: 24px;
-    right: 24px;
+    left: 22px;
+    right: 22px;
   }
 }
