@@ -49,6 +49,7 @@ const els = {
   focusTimerBox: document.getElementById('focusTimerBox'),
   focusTimerDisplay: document.getElementById('focusTimerDisplay'),
   playStateBtn: document.getElementById('playStateBtn'),
+  tapTempoBtn: document.getElementById('tapTempoBtn'),
   prefsResetBtn: document.getElementById('prefsResetBtn'),
   tempoButton: document.getElementById('tempoButton'),
   tempoField: document.getElementById('tempoField'),
@@ -557,6 +558,7 @@ function attachEvents() {
   window.addEventListener('click', primeAudio, { passive: true, once: true });
 
   els.playStateBtn.addEventListener('click', changeSound);
+  els.tapTempoBtn.addEventListener('click', doTapTempo);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
   let focusTimerDragMoved = false;
   els.focusTimerBox.addEventListener('pointerdown', (e) => {
@@ -644,11 +646,6 @@ function attachEvents() {
     moveDrag(y);
   }, { passive: true });
   els.tempoStage.addEventListener('touchend', finishTempoTap);
-
-  els.app.addEventListener('click', (e) => {
-    const interactive = e.target.closest('button, input, label, .tempo-stage, .stepper-row, .beat-stack');
-    if (!interactive) doTapTempo();
-  });
 
   els.focusTimerBox.addEventListener('wheel', (e) => {
     if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return;

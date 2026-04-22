@@ -132,8 +132,8 @@ button {
 .prefs-row {
   position: absolute;
   top: 132px;
-  left: 32.5px;
-  right: 32.5px;
+  left: 28px;
+  right: 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -153,6 +153,12 @@ button {
   height: 50.75px;
   font-size: 35px;
   transform-origin: center;
+}
+
+.tap-btn {
+  width: 42.35px;
+  height: 60.2px;
+  font-size: 32px;
 }
 
 .reset-btn {
