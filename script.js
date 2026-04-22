@@ -2,7 +2,7 @@ const STORAGE_KEY = 'just-metronome-web-v2';
 const BPM_MIN = 10;
 const BPM_MAX = 360;
 const BEATS_MIN = 1;
-const BEATS_MAX = 16;
+const BEATS_MAX = 32;
 
 const metSoundList = [
   { key: 'just-click', label: 'Just Click', file: 'assets/just-click.wav' },
@@ -248,7 +248,7 @@ function renderBeats() {
 
     btn.addEventListener('click', () => onBeatTap(i));
 
-    if (i < 8) {
+    if (i < 16) {
       els.beatStack.appendChild(btn);
     } else {
       els.beatOptStack.appendChild(btn);
