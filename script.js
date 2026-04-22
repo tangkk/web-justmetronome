@@ -36,13 +36,13 @@ const state = {
   focusTimerSeconds: 25 * 60,
   focusTimerRunning: false,
   focusTimerIntervalId: null,
+  focusTimerDing: null,
 };
 
 const els = {
   app: document.querySelector('.app'),
+  focusTimerBox: document.getElementById('focusTimerBox'),
   focusTimerDisplay: document.getElementById('focusTimerDisplay'),
-  focusTimerStartPause: document.getElementById('focusTimerStartPause'),
-  focusTimerReset: document.getElementById('focusTimerReset'),
   playStateBtn: document.getElementById('playStateBtn'),
   prefsResetBtn: document.getElementById('prefsResetBtn'),
   tempoButton: document.getElementById('tempoButton'),
@@ -236,7 +236,6 @@ function renderFocusTimer() {
   const min = Math.floor(state.focusTimerSeconds / 60);
   const sec = state.focusTimerSeconds % 60;
   els.focusTimerDisplay.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  els.focusTimerStartPause.textContent = state.focusTimerRunning ? 'Pause' : 'Start';
 }
 
 function renderBeats() {
@@ -386,6 +385,10 @@ function startFocusTimer() {
     if (state.focusTimerSeconds > 0) {
       state.focusTimerSeconds -= 1;
       renderFocusTimer();
+      if (state.focusTimerSeconds === 0) {
+        pauseFocusTimer();
+        playFocusTimerDing();
+      }
     } else {
       pauseFocusTimer();
     }
@@ -416,12 +419,23 @@ function toggleFocusTimer() {
   }
 }
 
+function playFocusTimerDing() {
+  if (!state.focusTimerDing) {
+    state.focusTimerDing = new Audio('assets/focus-ding.mp3');
+  }
+  state.focusTimerDing.currentTime = 0;
+  state.focusTimerDing.play().catch(() => {});
+}
+
 
 function attachEvents() {
   els.playStateBtn.addEventListener('click', changeSound);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
-  els.focusTimerStartPause.addEventListener('click', toggleFocusTimer);
-  els.focusTimerReset.addEventListener('click', resetFocusTimer);
+  els.focusTimerBox.addEventListener('click', toggleFocusTimer);
+  els.focusTimerBox.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    resetFocusTimer();
+  });
   els.tempoButton.addEventListener('click', (e) => {
     e.stopPropagation();
     togglePlay();

@@ -56,14 +56,22 @@ button {
   border-radius: 22px;
 }
 
-.timer-bar {
+.timer-box {
   position: absolute;
-  top: 28px;
-  left: 22px;
-  right: 22px;
-  display: flex;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 106px;
+  height: 34px;
+  padding: 0 14px;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  border: 1.5px solid #000;
+  border-radius: 8px;
+  background: #fff;
+  color: #000;
+  cursor: pointer;
 }
 
 .timer-display {
@@ -71,17 +79,6 @@ button {
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--fg);
-}
-
-.timer-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.timer-btn {
-  min-width: 50px;
-  padding: 4px 8px;
 }
 
 .prefs-row {
