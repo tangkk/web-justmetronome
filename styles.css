@@ -79,6 +79,15 @@ button {
   font: inherit;
   -webkit-appearance: none;
   appearance: none;
+  outline: none;
+  box-shadow: none;
+}
+
+button:focus,
+button:focus-visible,
+button:active {
+  outline: none;
+  box-shadow: none;
 }
 
 .app {
