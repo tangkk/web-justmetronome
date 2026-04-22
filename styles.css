@@ -222,8 +222,8 @@ button {
 .beat-btn.current::after {
   content: '';
   position: absolute;
-  left: 3px;
-  right: 1px;
+  left: 5px;
+  right: -1px;
   bottom: -2px;
   height: 1.5px;
   background: #000;
