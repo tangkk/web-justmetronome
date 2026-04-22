@@ -248,7 +248,7 @@ function renderBeats() {
 
     btn.addEventListener('click', () => onBeatTap(i));
 
-    if (i < 16) {
+    if (i < 8) {
       els.beatStack.appendChild(btn);
     } else {
       els.beatOptStack.appendChild(btn);

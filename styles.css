@@ -155,7 +155,7 @@ button {
 }
 
 .stepper-row {
-  margin: 102px auto 0;
+  margin: 84px auto 0;
   width: 64px;
   height: 22px;
   display: flex;
@@ -179,24 +179,24 @@ button {
 }
 
 .beat-stack {
-  width: fit-content;
+  width: 152px;
   min-width: 69px;
   margin-left: auto;
   margin-right: auto;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 2px;
   position: relative;
   left: -4px;
 }
 
 .primary-row {
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .secondary-row {
-  margin-top: 7px;
+  margin-top: 5px;
 }
 
 .beat-btn {
@@ -224,7 +224,7 @@ button {
 }
 
 .bottom-tools {
-  margin-top: 20px;
+  margin-top: 14px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
