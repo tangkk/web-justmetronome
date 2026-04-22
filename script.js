@@ -222,7 +222,7 @@ function render() {
   els.beatsValue.textContent = String(state.numBeats);
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
   els.volumeSlider.value = String(state.volume);
-  els.playHint.textContent = state.isPlaying ? 'Press Space to stop' : 'Press Space to start';
+  els.playHint.textContent = '';
   els.app.classList.toggle('is-playing', state.isPlaying);
   renderBeats();
 }
