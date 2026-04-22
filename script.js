@@ -67,6 +67,7 @@ class WebMetronome {
     this.scheduleAhead = 0.1;
     this.buffers = new Map();
     this.htmlAudio = new Map();
+    this.mobileTickTimeouts = [];
   }
 
   async ensureAudio() {
@@ -102,6 +103,12 @@ class WebMetronome {
     await this.ensureAudio();
     state.isPlaying = true;
     state.currentBeat = 0;
+
+    if (this.isMobileAudioMode()) {
+      this.startMobileLoop();
+      return;
+    }
+
     state.nextBeatTime = this.audioCtx.currentTime + 0.05;
     this.scheduler();
     state.schedulerId = window.setInterval(() => this.scheduler(), this.lookaheadMs);
@@ -113,6 +120,8 @@ class WebMetronome {
       clearInterval(state.schedulerId);
       state.schedulerId = null;
     }
+    this.mobileTickTimeouts.forEach((id) => clearTimeout(id));
+    this.mobileTickTimeouts = [];
     clearCurrentBeat();
   }
 
@@ -120,6 +129,48 @@ class WebMetronome {
     if (!state.isPlaying) return;
     this.stop();
     this.start();
+  }
+
+  isMobileAudioMode() {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  startMobileLoop() {
+    const tick = () => {
+      if (!state.isPlaying) return;
+      const index = state.currentBeat;
+      const firstBeatMuted = index === 0 && state.firstBeatState === 0 && state.beatMask.includes(0);
+      const normalMuted = index !== 0 && state.beatMask.includes(index);
+      const mutedByMode = index === 0 && state.firstBeatState === 1;
+      const shouldPlay = !(firstBeatMuted || normalMuted || mutedByMode);
+      const isAccent = index === 0 && state.firstBeatState === 2;
+
+      highlightBeat(index);
+      if (shouldPlay && state.playState < metSoundList.length - 1) {
+        this.playImmediateMobileClick(isAccent);
+      }
+
+      state.currentBeat = (state.currentBeat + 1) % state.numBeats;
+      const id = window.setTimeout(tick, 60000 / state.bpm);
+      this.mobileTickTimeouts.push(id);
+    };
+
+    tick();
+  }
+
+  playImmediateMobileClick(accent) {
+    const sound = metSoundList[state.playState];
+    const baseAudio = sound?.file ? this.htmlAudio.get(sound.file) : null;
+    if (baseAudio) {
+      const audio = baseAudio.cloneNode();
+      audio.volume = Math.min(1, (accent ? 1.6 : 1) * state.volume);
+      audio.playsInline = true;
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+      return;
+    }
+
+    this.click(this.audioCtx?.currentTime ?? 0, accent);
   }
 
   scheduler() {
@@ -472,6 +523,16 @@ async function unlockAudio() {
       state.focusTimerDing = new Audio('assets/focus-ding.mp3');
       state.focusTimerDing.preload = 'auto';
       state.focusTimerDing.playsInline = true;
+    }
+    for (const sound of metSoundList) {
+      if (!sound.file) continue;
+      let audio = metronome.htmlAudio.get(sound.file);
+      if (!audio) {
+        audio = new Audio(sound.file);
+        audio.preload = 'auto';
+        audio.playsInline = true;
+        metronome.htmlAudio.set(sound.file, audio);
+      }
     }
     state.focusTimerDing.muted = true;
     await state.focusTimerDing.play().catch(() => {});
