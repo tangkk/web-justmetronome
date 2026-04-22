@@ -396,9 +396,15 @@ function setBpm(next) {
 }
 
 function adjustBeats(delta) {
+  const prev = state.numBeats;
   const next = clamp(state.numBeats + delta, BEATS_MIN, BEATS_MAX);
   if (next === state.numBeats) return;
   state.numBeats = next;
+  if (next > prev) {
+    for (let i = prev; i < next; i += 1) {
+      if (!state.beatMask.includes(i)) state.beatMask.push(i);
+    }
+  }
   state.beatMask = state.beatMask.filter((i) => i < state.numBeats);
   saveState();
   render();
