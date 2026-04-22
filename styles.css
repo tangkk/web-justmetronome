@@ -265,6 +265,7 @@ button {
 
 .volume-control input[type='range'] {
   width: 72px;
+  accent-color: #000;
 }
 
 @media (max-width: 414px) {
