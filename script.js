@@ -133,7 +133,7 @@ class WebMetronome {
   }
 
   isMobileAudioMode() {
-    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   }
 
   startMobileLoop() {
@@ -203,7 +203,7 @@ class WebMetronome {
     const ctx = this.audioCtx;
     const sound = metSoundList[state.playState];
     const buffer = sound?.file ? this.buffers.get(sound.file) : null;
-    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     if (isAppleMobile && sound?.file) {
       const baseAudio = this.htmlAudio.get(sound.file);
@@ -663,7 +663,7 @@ function attachEvents() {
 }
 
 function isMobileUnsupported() {
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
 if (isMobileUnsupported()) {
