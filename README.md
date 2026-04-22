@@ -68,4 +68,4 @@ A few iOS-specific things are intentionally not ported as-is:
 - lock screen transport integration
 - bundled audio asset playback via AVAudioEngine
 
-Instead, the web app uses the Web Audio API to synthesize short click sounds directly in the browser, which keeps deployment simple and fully frontend-only.
+This repo now also includes the original audio assets from the iOS app under `assets/`, and the web app will prefer those real samples in the browser.

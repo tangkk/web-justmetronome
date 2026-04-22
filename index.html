@@ -4,87 +4,40 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JustMetronome</title>
-    <meta
-      name="description"
-      content="A clean, front-end metronome for the web. Tap tempo, beat muting, accent first beat, multiple sounds."
-    />
+    <meta name="description" content="JustMetronome web app" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="app">
-      <header class="topbar">
-        <div>
-          <h1>JustMetronome</h1>
-          <p class="subtitle">Web version of your iOS metronome — pure frontend, GitHub Pages friendly.</p>
-        </div>
-        <button id="resetBtn" class="secondary-btn">Reset</button>
-      </header>
+    <main class="app">
+      <div class="prefs-row">
+        <button id="playStateBtn" class="icon-btn sound-btn" aria-label="Change sound">⍥</button>
+        <button id="prefsResetBtn" class="icon-btn reset-btn" aria-label="Reset preferences">⌾</button>
+      </div>
 
-      <main class="main-grid">
-        <section class="panel transport-panel">
-          <div class="tempo-ring-wrap">
-            <div class="tempo-ring" id="tempoRing">
-              <div class="tempo-core">
-                <div class="label">BPM</div>
-                <div id="tempoValue" class="tempo-value">120</div>
-                <div class="tempo-hint">Drag vertically or use buttons</div>
-              </div>
-              <svg class="ring-svg" viewBox="0 0 220 220" aria-hidden="true">
-                <circle class="ring-bg" cx="110" cy="110" r="92"></circle>
-                <circle class="ring-progress" id="ringProgress" cx="110" cy="110" r="92"></circle>
-              </svg>
-            </div>
-          </div>
+      <section class="tempo-stage">
+        <svg class="progress-ring" viewBox="0 0 220 220" aria-hidden="true">
+          <circle class="ring-track" cx="110" cy="110" r="92"></circle>
+          <circle class="ring-progress" id="ringProgress" cx="110" cy="110" r="92"></circle>
+        </svg>
+        <button id="tempoButton" class="tempo-button" aria-label="Start or stop metronome"></button>
+        <div id="tempoField" class="tempo-field">120</div>
+      </section>
 
-          <div class="tempo-controls">
-            <button id="minusBtn" class="circle-btn">−</button>
-            <button id="tapBtn" class="accent-btn">Tap Tempo</button>
-            <button id="plusBtn" class="circle-btn">+</button>
-          </div>
+      <section class="stepper-row" aria-label="Number of beats">
+        <button id="beatsMinusBtn" class="stepper-btn" aria-label="Decrease number of beats">−</button>
+        <div id="beatsValue" class="beats-readout">4</div>
+        <button id="beatsPlusBtn" class="stepper-btn" aria-label="Increase number of beats">+</button>
+      </section>
 
-          <div class="transport-controls">
-            <button id="playBtn" class="play-btn">Start</button>
-            <label class="field">
-              <span>Sound</span>
-              <select id="soundSelect"></select>
-            </label>
-            <label class="field">
-              <span>Volume</span>
-              <input id="volumeSlider" type="range" min="0" max="1" step="0.01" />
-            </label>
-          </div>
-        </section>
+      <section id="beatStack" class="beat-stack primary-row" aria-label="Beat row 1"></section>
+      <section id="beatOptStack" class="beat-stack secondary-row" aria-label="Beat row 2"></section>
 
-        <section class="panel settings-panel">
-          <div class="row between">
-            <h2>Beats</h2>
-            <div class="stepper">
-              <button id="beatsMinusBtn">−</button>
-              <span id="beatsValue">4</span>
-              <button id="beatsPlusBtn">+</button>
-            </div>
-          </div>
-
-          <div class="row between first-beat-row">
-            <div>
-              <h3>First beat</h3>
-              <p class="muted">Cycle through normal / muted / accented</p>
-            </div>
-            <button id="firstBeatModeBtn" class="mode-btn">Normal</button>
-          </div>
-
-          <div>
-            <h3>Pattern</h3>
-            <p class="muted">Click beats to mute/unmute them.</p>
-            <div id="beatsGrid" class="beats-grid"></div>
-          </div>
-
-          <div class="status-box" id="statusBox">
-            Ready.
-          </div>
-        </section>
-      </main>
-    </div>
+      <div class="bottom-tools">
+        <button id="tapTempoBtn" class="ghost-btn">Tap</button>
+        <button id="firstBeatBtn" class="ghost-btn">1st: Normal</button>
+        <div id="soundLabel" class="sound-label">Sound: Just Click</div>
+      </div>
+    </main>
 
     <script type="module" src="./script.js"></script>
   </body>

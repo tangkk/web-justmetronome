@@ -1,26 +1,26 @@
-const STORAGE_KEY = 'just-metronome-web-v1';
+const STORAGE_KEY = 'just-metronome-web-v2';
 const BPM_MIN = 10;
 const BPM_MAX = 360;
 const BEATS_MIN = 1;
 const BEATS_MAX = 16;
 const RING_CIRCUMFERENCE = 2 * Math.PI * 92;
 
-const soundOptions = [
-  { key: 'just-click', label: 'Just Click', type: 'click' },
-  { key: 'hollow-click', label: 'Hollow Click', type: 'click' },
-  { key: 'drum-stick', label: 'Drum Stick', type: 'click' },
-  { key: 'practice-pad', label: 'Practice Pad', type: 'click' },
-  { key: 'met-quartz', label: 'Met Quartz', type: 'click' },
-  { key: 'perc-snap', label: 'Perc Snap', type: 'click' },
-  { key: 'silent', label: 'Silent / Visual Only', type: 'silent' },
+const metSoundList = [
+  { key: 'just-click', label: 'Just Click', file: 'assets/just-click.wav' },
+  { key: 'hollow-click', label: 'Hollow Click', file: 'assets/hollow-click.wav' },
+  { key: 'drum-stick', label: 'Drum Stick', file: 'assets/drum-stick.wav' },
+  { key: 'practice-pad', label: 'Practice Pad', file: 'assets/practice-pad.wav' },
+  { key: 'met-quartz', label: 'Met Quartz', file: 'assets/met-quartz.wav' },
+  { key: 'perc-snap', label: 'Perc Snap', file: 'assets/perc-snap.wav' },
+  { key: 'silent', label: 'Silent', file: null },
 ];
 
 const defaultState = {
   bpm: 120,
   numBeats: 4,
   beatMask: [0, 2],
-  firstBeatState: 0, // 0 normal, 1 muted, 2 accent
-  sound: 'just-click',
+  firstBeatState: 0,
+  playState: 0,
   volume: 0.7,
 };
 
@@ -28,59 +28,63 @@ const state = {
   ...loadState(),
   isPlaying: false,
   currentBeat: 0,
+  tapSequence: [],
   schedulerId: null,
   nextBeatTime: 0,
-  tapSequence: [],
-  audioReady: false,
-  draggingTempo: false,
+  dragActive: false,
   dragStartY: 0,
-  dragStartBpm: 120,
+  dragInitialBpm: 120,
 };
 
 const els = {
-  tempoValue: document.getElementById('tempoValue'),
+  playStateBtn: document.getElementById('playStateBtn'),
+  prefsResetBtn: document.getElementById('prefsResetBtn'),
+  tempoButton: document.getElementById('tempoButton'),
+  tempoField: document.getElementById('tempoField'),
   ringProgress: document.getElementById('ringProgress'),
-  tempoRing: document.getElementById('tempoRing'),
-  minusBtn: document.getElementById('minusBtn'),
-  plusBtn: document.getElementById('plusBtn'),
-  tapBtn: document.getElementById('tapBtn'),
-  playBtn: document.getElementById('playBtn'),
-  resetBtn: document.getElementById('resetBtn'),
-  soundSelect: document.getElementById('soundSelect'),
-  volumeSlider: document.getElementById('volumeSlider'),
-  beatsValue: document.getElementById('beatsValue'),
   beatsMinusBtn: document.getElementById('beatsMinusBtn'),
   beatsPlusBtn: document.getElementById('beatsPlusBtn'),
-  beatsGrid: document.getElementById('beatsGrid'),
-  firstBeatModeBtn: document.getElementById('firstBeatModeBtn'),
-  statusBox: document.getElementById('statusBox'),
+  beatsValue: document.getElementById('beatsValue'),
+  beatStack: document.getElementById('beatStack'),
+  beatOptStack: document.getElementById('beatOptStack'),
+  tapTempoBtn: document.getElementById('tapTempoBtn'),
+  firstBeatBtn: document.getElementById('firstBeatBtn'),
+  soundLabel: document.getElementById('soundLabel'),
 };
 
 class WebMetronome {
   constructor() {
     this.audioCtx = null;
     this.lookaheadMs = 25;
-    this.scheduleAheadSeconds = 0.1;
-    this.startedAt = 0;
+    this.scheduleAhead = 0.1;
+    this.buffers = new Map();
   }
 
-  ensureAudio() {
+  async ensureAudio() {
     if (!this.audioCtx) {
       const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
       this.audioCtx = new AudioContextCtor();
     }
     if (this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume();
+      await this.audioCtx.resume();
     }
-    state.audioReady = true;
+    await this.preloadCurrentBuffer();
   }
 
-  start() {
-    this.ensureAudio();
+  async preloadCurrentBuffer() {
+    const sound = metSoundList[state.playState];
+    if (!sound || !sound.file || this.buffers.has(sound.file)) return;
+    const res = await fetch(sound.file);
+    const arr = await res.arrayBuffer();
+    const buffer = await this.audioCtx.decodeAudioData(arr.slice(0));
+    this.buffers.set(sound.file, buffer);
+  }
+
+  async start() {
+    await this.ensureAudio();
     state.isPlaying = true;
     state.currentBeat = 0;
-    this.startedAt = this.audioCtx.currentTime + 0.06;
-    state.nextBeatTime = this.startedAt;
+    state.nextBeatTime = this.audioCtx.currentTime + 0.05;
     this.scheduler();
     state.schedulerId = window.setInterval(() => this.scheduler(), this.lookaheadMs);
   }
@@ -88,87 +92,93 @@ class WebMetronome {
   stop() {
     state.isPlaying = false;
     if (state.schedulerId) {
-      window.clearInterval(state.schedulerId);
+      clearInterval(state.schedulerId);
       state.schedulerId = null;
     }
     clearCurrentBeat();
     setRingProgress(0);
   }
 
-  restartIfNeeded() {
+  restartIfPlaying() {
     if (!state.isPlaying) return;
     this.stop();
     this.start();
   }
 
   scheduler() {
-    while (state.nextBeatTime < this.audioCtx.currentTime + this.scheduleAheadSeconds) {
+    while (state.nextBeatTime < this.audioCtx.currentTime + this.scheduleAhead) {
       this.scheduleBeat(state.currentBeat, state.nextBeatTime);
-      const secondsPerBeat = 60 / state.bpm;
-      state.nextBeatTime += secondsPerBeat;
+      state.nextBeatTime += 60 / state.bpm;
       state.currentBeat = (state.currentBeat + 1) % state.numBeats;
     }
   }
 
-  scheduleBeat(beatIndex, time) {
-    const isMuted = isBeatMuted(beatIndex);
-    const isFirst = beatIndex === 0;
-    const accentState = state.firstBeatState;
-    const shouldPlay = !(isMuted || (isFirst && accentState === 1));
-    const isAccent = isFirst && accentState === 2;
-
+  scheduleBeat(index, time) {
+    const firstBeatMuted = index === 0 && state.firstBeatState === 0 && state.beatMask.includes(0);
+    const normalMuted = index !== 0 && state.beatMask.includes(index);
+    const mutedByMode = index === 0 && state.firstBeatState === 1;
+    const shouldPlay = !(firstBeatMuted || normalMuted || mutedByMode);
+    const isAccent = index === 0 && state.firstBeatState === 2;
     const delayMs = Math.max(0, (time - this.audioCtx.currentTime) * 1000);
-    window.setTimeout(() => {
-      highlightBeat(beatIndex);
-      pulseTempo();
-      updateStatus(
-        `Playing · ${state.bpm} BPM · ${state.numBeats}/4 · beat ${beatIndex + 1}${shouldPlay ? '' : ' (muted)'}`
-      );
+
+    setTimeout(() => {
+      highlightBeat(index);
+      animatePulse();
     }, delayMs);
 
-    animateRingToBeat(time);
+    animateRing(time);
 
-    if (shouldPlay && state.sound !== 'silent') {
-      this.triggerClick(time, isAccent);
+    if (shouldPlay && state.playState < metSoundList.length - 1) {
+      this.click(time, isAccent);
     }
   }
 
-  triggerClick(time, accent = false) {
+  click(time, accent) {
     const ctx = this.audioCtx;
+    const sound = metSoundList[state.playState];
+    const buffer = sound?.file ? this.buffers.get(sound.file) : null;
+
+    if (buffer) {
+      const source = ctx.createBufferSource();
+      const gain = ctx.createGain();
+      source.buffer = buffer;
+      gain.gain.setValueAtTime((accent ? 1.6 : 1) * state.volume, time);
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      source.start(time);
+      return;
+    }
+
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
 
-    const soundProfiles = {
-      'just-click': { type: 'square', freq: accent ? 2200 : 1800, decay: 0.02, q: 8 },
-      'hollow-click': { type: 'triangle', freq: accent ? 1600 : 1200, decay: 0.03, q: 3 },
-      'drum-stick': { type: 'square', freq: accent ? 950 : 780, decay: 0.018, q: 12 },
-      'practice-pad': { type: 'sawtooth', freq: accent ? 720 : 560, decay: 0.028, q: 6 },
-      'met-quartz': { type: 'square', freq: accent ? 2600 : 2100, decay: 0.012, q: 16 },
-      'perc-snap': { type: 'triangle', freq: accent ? 3200 : 2700, decay: 0.01, q: 20 },
+    const profiles = {
+      0: { type: 'square', freq: accent ? 2200 : 1800, decay: 0.02, q: 8 },
+      1: { type: 'triangle', freq: accent ? 1600 : 1250, decay: 0.028, q: 4 },
+      2: { type: 'square', freq: accent ? 900 : 760, decay: 0.016, q: 14 },
+      3: { type: 'sawtooth', freq: accent ? 700 : 540, decay: 0.024, q: 7 },
+      4: { type: 'square', freq: accent ? 2600 : 2100, decay: 0.011, q: 18 },
+      5: { type: 'triangle', freq: accent ? 3200 : 2750, decay: 0.01, q: 22 },
     };
 
-    const profile = soundProfiles[state.sound] || soundProfiles['just-click'];
-    osc.type = profile.type;
-    osc.frequency.setValueAtTime(profile.freq, time);
-
+    const p = profiles[state.playState] || profiles[0];
+    osc.type = p.type;
+    osc.frequency.setValueAtTime(p.freq, time);
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(profile.freq, time);
-    filter.Q.setValueAtTime(profile.q, time);
+    filter.frequency.setValueAtTime(p.freq, time);
+    filter.Q.setValueAtTime(p.q, time);
 
-    const volume = Math.max(0, Math.min(1, state.volume));
-    const peak = (accent ? 1.25 : 1) * volume * 0.22;
-
+    const peak = (accent ? 1.4 : 1) * state.volume * 0.22;
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), time + 0.001);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + profile.decay);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + p.decay);
 
     osc.connect(filter);
     filter.connect(gain);
     gain.connect(ctx.destination);
-
     osc.start(time);
-    osc.stop(time + Math.max(0.04, profile.decay + 0.01));
+    osc.stop(time + Math.max(0.04, p.decay + 0.01));
   }
 }
 
@@ -184,9 +194,9 @@ function loadState() {
       ...parsed,
       bpm: clamp(parsed.bpm ?? defaultState.bpm, BPM_MIN, BPM_MAX),
       numBeats: clamp(parsed.numBeats ?? defaultState.numBeats, BEATS_MIN, BEATS_MAX),
-      beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter(Number.isInteger) : defaultState.beatMask,
+      beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter((n) => Number.isInteger(n)) : defaultState.beatMask,
       firstBeatState: [0, 1, 2].includes(parsed.firstBeatState) ? parsed.firstBeatState : 0,
-      sound: soundOptions.some((s) => s.key === parsed.sound) ? parsed.sound : defaultState.sound,
+      playState: Number.isInteger(parsed.playState) ? clamp(parsed.playState, 0, metSoundList.length - 1) : 0,
       volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(1, parsed.volume)) : defaultState.volume,
     };
   } catch {
@@ -195,285 +205,248 @@ function loadState() {
 }
 
 function saveState() {
-  const persisted = {
-    bpm: state.bpm,
-    numBeats: state.numBeats,
-    beatMask: [...state.beatMask].sort((a, b) => a - b),
-    firstBeatState: state.firstBeatState,
-    sound: state.sound,
-    volume: state.volume,
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function isBeatMuted(index) {
-  return state.beatMask.includes(index);
-}
-
-function setBpm(nextBpm, source = 'manual') {
-  const bpm = clamp(Math.round(nextBpm), BPM_MIN, BPM_MAX);
-  if (bpm === state.bpm) return;
-  state.bpm = bpm;
-  els.tempoValue.textContent = String(bpm);
-  saveState();
-  updateStatus(`Tempo set to ${bpm} BPM${source === 'tap' ? ' via tap tempo' : ''}.`);
-  metronome.restartIfNeeded();
-}
-
-function setNumBeats(nextBeats) {
-  const beats = clamp(Math.round(nextBeats), BEATS_MIN, BEATS_MAX);
-  if (beats === state.numBeats) return;
-  state.numBeats = beats;
-  state.beatMask = state.beatMask.filter((i) => i < beats);
-  els.beatsValue.textContent = String(beats);
-  renderBeatGrid();
-  saveState();
-  updateStatus(`Pattern length set to ${beats} beats.`);
-  metronome.restartIfNeeded();
-}
-
-function cycleFirstBeatState() {
-  state.firstBeatState = (state.firstBeatState + 1) % 3;
-  renderFirstBeatMode();
-  renderBeatGrid();
-  saveState();
-  metronome.restartIfNeeded();
-}
-
-function renderFirstBeatMode() {
-  const labels = ['Normal', 'Muted', 'Accented'];
-  els.firstBeatModeBtn.textContent = labels[state.firstBeatState];
-}
-
-function renderSoundOptions() {
-  els.soundSelect.innerHTML = soundOptions
-    .map((item) => `<option value="${item.key}">${item.label}</option>`)
-    .join('');
-  els.soundSelect.value = state.sound;
-}
-
-function renderBeatGrid() {
-  els.beatsGrid.innerHTML = '';
-  for (let i = 0; i < state.numBeats; i += 1) {
-    const btn = document.createElement('button');
-    btn.className = 'beat-btn';
-    const muted = isBeatMuted(i) || (i === 0 && state.firstBeatState === 1);
-    btn.classList.toggle('active', !muted);
-    btn.classList.toggle('muted', muted);
-    btn.classList.toggle('first-accent', i === 0 && state.firstBeatState === 2);
-    btn.dataset.index = String(i);
-    btn.textContent = i === 0 ? `1${state.firstBeatState === 2 ? ' ★' : ''}` : String(i + 1);
-    btn.addEventListener('click', () => toggleBeat(i));
-    els.beatsGrid.appendChild(btn);
-  }
-}
-
-function toggleBeat(index) {
-  if (index === 0 && state.firstBeatState !== 0) {
-    updateStatus('First beat is controlled by the First beat mode. Switch it back to Normal if you want beat 1 toggled normally.');
-    return;
-  }
-
-  if (isBeatMuted(index)) {
-    state.beatMask = state.beatMask.filter((i) => i !== index);
-  } else {
-    state.beatMask = [...state.beatMask, index].sort((a, b) => a - b);
-  }
-  renderBeatGrid();
-  saveState();
-  metronome.restartIfNeeded();
-}
-
-function highlightBeat(index) {
-  clearCurrentBeat();
-  const btn = els.beatsGrid.querySelector(`[data-index="${index}"]`);
-  btn?.classList.add('current');
-}
-
-function clearCurrentBeat() {
-  els.beatsGrid.querySelectorAll('.beat-btn.current').forEach((el) => el.classList.remove('current'));
-}
-
-function pulseTempo() {
-  els.tempoRing.animate(
-    [
-      { transform: 'scale(1)' },
-      { transform: 'scale(1.01)' },
-      { transform: 'scale(1)' },
-    ],
-    { duration: 140, easing: 'ease-out' }
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      bpm: state.bpm,
+      numBeats: state.numBeats,
+      beatMask: [...state.beatMask].sort((a, b) => a - b),
+      firstBeatState: state.firstBeatState,
+      playState: state.playState,
+      volume: state.volume,
+    })
   );
 }
 
-function setRingProgress(progress) {
-  const normalized = Math.max(0, Math.min(1, progress));
-  els.ringProgress.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - normalized));
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, Math.round(n)));
 }
 
-function animateRingToBeat(scheduledTime) {
-  const beatDurationMs = (60 / state.bpm) * 1000;
-  const startDelay = Math.max(0, (scheduledTime - (metronome.audioCtx?.currentTime ?? 0)) * 1000);
-  const startedAt = performance.now() + startDelay;
-
-  const step = (now) => {
-    if (!state.isPlaying) {
-      setRingProgress(0);
-      return;
-    }
-    const progress = clamp((now - startedAt) / beatDurationMs, 0, 1);
-    setRingProgress(progress);
-    if (progress < 1) {
-      requestAnimationFrame(step);
-    }
-  };
-
-  requestAnimationFrame(step);
+function render() {
+  els.tempoField.textContent = String(state.bpm);
+  els.beatsValue.textContent = String(state.numBeats);
+  els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
+  els.soundLabel.textContent = `Sound: ${metSoundList[state.playState].label}`;
+  els.firstBeatBtn.textContent = `1st: ${['Normal', 'Muted', 'Accent'][state.firstBeatState]}`;
+  renderBeats();
 }
 
-function handleTapTempo() {
+function renderBeats() {
+  els.beatStack.innerHTML = '';
+  els.beatOptStack.innerHTML = '';
+
+  for (let i = 0; i < state.numBeats; i += 1) {
+    const btn = document.createElement('button');
+    btn.className = 'beat-btn';
+    btn.dataset.index = String(i);
+
+    if (i === 0) {
+      if (state.firstBeatState === 2) {
+        btn.textContent = '◼️';
+      } else if (state.firstBeatState === 1) {
+        btn.textContent = '◽️';
+      } else {
+        btn.textContent = state.beatMask.includes(0) ? '◽️' : '◾️';
+      }
+    } else {
+      btn.textContent = state.beatMask.includes(i) ? '◽️' : '◾️';
+    }
+
+    btn.addEventListener('click', () => onBeatTap(i));
+
+    if (i < 8) {
+      els.beatStack.appendChild(btn);
+    } else {
+      els.beatOptStack.appendChild(btn);
+    }
+  }
+}
+
+function onBeatTap(index) {
+  if (index === 0) {
+    cycleFirstBeatTap();
+    return;
+  }
+  toggleBeatMask(index);
+}
+
+function cycleFirstBeatTap() {
+  if (state.firstBeatState === 0) {
+    state.firstBeatState = 2;
+  } else if (state.firstBeatState === 2) {
+    state.firstBeatState = 1;
+  } else {
+    state.firstBeatState = 0;
+  }
+  saveState();
+  render();
+  metronome.restartIfPlaying();
+}
+
+function toggleBeatMask(index) {
+  if (state.beatMask.includes(index)) {
+    state.beatMask = state.beatMask.filter((x) => x !== index);
+  } else {
+    state.beatMask.push(index);
+  }
+  saveState();
+  render();
+  metronome.restartIfPlaying();
+}
+
+function setBpm(next) {
+  const bpm = clamp(next, BPM_MIN, BPM_MAX);
+  if (bpm === state.bpm) return;
+  state.bpm = bpm;
+  els.tempoField.textContent = String(state.bpm);
+  saveState();
+  metronome.restartIfPlaying();
+}
+
+function adjustBeats(delta) {
+  const next = clamp(state.numBeats + delta, BEATS_MIN, BEATS_MAX);
+  if (next === state.numBeats) return;
+  state.numBeats = next;
+  state.beatMask = state.beatMask.filter((i) => i < state.numBeats);
+  saveState();
+  render();
+  metronome.restartIfPlaying();
+}
+
+async function togglePlay() {
+  if (state.isPlaying) {
+    metronome.stop();
+  } else {
+    await metronome.start();
+  }
+}
+
+function changeSound() {
+  state.playState += 1;
+  if (state.playState >= metSoundList.length) state.playState = 0;
+  saveState();
+  render();
+  metronome.restartIfPlaying();
+}
+
+function resetPrefs() {
+  state.bpm = 120;
+  state.numBeats = 4;
+  state.beatMask = [0, 2];
+  state.playState = 0;
+  state.firstBeatState = 0;
+  saveState();
+  render();
+  metronome.restartIfPlaying();
+}
+
+function doTapTempo() {
   const now = performance.now();
-  if (state.tapSequence.length > 0 && now - state.tapSequence[state.tapSequence.length - 1] > 2000) {
+  if (state.tapSequence.length && now - state.tapSequence[state.tapSequence.length - 1] > 2000) {
     state.tapSequence = [];
   }
-  if (state.tapSequence.length >= 6) {
+  if (state.tapSequence.length > 6) {
     state.tapSequence.shift();
   }
   state.tapSequence.push(now);
 
   if (state.tapSequence.length >= 3) {
-    let totalGap = 0;
-    for (let i = 1; i < state.tapSequence.length; i += 1) {
-      totalGap += state.tapSequence[i] - state.tapSequence[i - 1];
+    let sum = 0;
+    for (let i = 0; i < state.tapSequence.length - 1; i += 1) {
+      sum += state.tapSequence[i + 1] - state.tapSequence[i];
     }
-    const avgGap = totalGap / (state.tapSequence.length - 1);
-    const bpm = 60000 / avgGap;
-    setBpm(bpm, 'tap');
-  } else {
-    updateStatus(`Tap ${3 - state.tapSequence.length} more time${state.tapSequence.length === 2 ? '' : 's'} to lock tempo.`);
+    setBpm(60000 / (sum / (state.tapSequence.length - 1)));
   }
 }
 
-function togglePlay() {
-  if (!state.audioReady) {
-    try {
-      metronome.ensureAudio();
-    } catch (error) {
-      updateStatus(`Audio init failed: ${error.message}`);
+function highlightBeat(index) {
+  clearCurrentBeat();
+  const btn = document.querySelector(`.beat-btn[data-index="${index}"]`);
+  if (btn) btn.classList.add('current');
+}
+
+function clearCurrentBeat() {
+  document.querySelectorAll('.beat-btn.current').forEach((el) => el.classList.remove('current'));
+}
+
+function setRingProgress(progress) {
+  els.ringProgress.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - Math.max(0, Math.min(1, progress))));
+}
+
+function animateRing(scheduledTime) {
+  const beatMs = (60 / state.bpm) * 1000;
+  const startAt = performance.now() + Math.max(0, (scheduledTime - (metronome.audioCtx?.currentTime ?? 0)) * 1000);
+  const loop = (now) => {
+    if (!state.isPlaying) {
+      setRingProgress(0);
       return;
     }
-  }
-
-  if (state.isPlaying) {
-    metronome.stop();
-    els.playBtn.textContent = 'Start';
-    els.playBtn.classList.remove('is-playing');
-    updateStatus('Stopped.');
-  } else {
-    metronome.start();
-    els.playBtn.textContent = 'Stop';
-    els.playBtn.classList.add('is-playing');
-    updateStatus(`Started at ${state.bpm} BPM.`);
-  }
+    const progress = Math.max(0, Math.min(1, (now - startAt) / beatMs));
+    setRingProgress(progress);
+    if (progress < 1) requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
 }
 
-function resetAll() {
-  Object.assign(state, {
-    ...defaultState,
-    isPlaying: false,
-    currentBeat: 0,
-    schedulerId: null,
-    nextBeatTime: 0,
-    tapSequence: [],
-    audioReady: state.audioReady,
-    draggingTempo: false,
-    dragStartY: 0,
-    dragStartBpm: defaultState.bpm,
-  });
-  metronome.stop();
-  renderAll();
-  saveState();
-  updateStatus('Reset to defaults.');
-}
-
-function renderAll() {
-  els.tempoValue.textContent = String(state.bpm);
-  els.beatsValue.textContent = String(state.numBeats);
-  els.volumeSlider.value = String(state.volume);
-  renderSoundOptions();
-  renderFirstBeatMode();
-  renderBeatGrid();
-  els.playBtn.textContent = state.isPlaying ? 'Stop' : 'Start';
-  els.playBtn.classList.toggle('is-playing', state.isPlaying);
-  setRingProgress(0);
-}
-
-function updateStatus(text) {
-  els.statusBox.textContent = text;
+function animatePulse() {
+  els.tempoField.animate([
+    { opacity: 1 },
+    { opacity: 0.35 },
+    { opacity: 1 },
+  ], { duration: 160, easing: 'ease-out' });
 }
 
 function attachEvents() {
-  els.minusBtn.addEventListener('click', () => setBpm(state.bpm - 1));
-  els.plusBtn.addEventListener('click', () => setBpm(state.bpm + 1));
-  els.tapBtn.addEventListener('click', handleTapTempo);
-  els.playBtn.addEventListener('click', togglePlay);
-  els.resetBtn.addEventListener('click', resetAll);
-  els.beatsMinusBtn.addEventListener('click', () => setNumBeats(state.numBeats - 1));
-  els.beatsPlusBtn.addEventListener('click', () => setNumBeats(state.numBeats + 1));
-  els.firstBeatModeBtn.addEventListener('click', cycleFirstBeatState);
+  els.playStateBtn.addEventListener('click', changeSound);
+  els.prefsResetBtn.addEventListener('click', resetPrefs);
+  els.tempoButton.addEventListener('click', togglePlay);
+  els.tapTempoBtn.addEventListener('click', doTapTempo);
+  els.firstBeatBtn.addEventListener('click', cycleFirstBeatTap);
+  els.beatsMinusBtn.addEventListener('click', () => adjustBeats(-1));
+  els.beatsPlusBtn.addEventListener('click', () => adjustBeats(1));
 
-  els.soundSelect.addEventListener('change', (event) => {
-    state.sound = event.target.value;
-    saveState();
-    updateStatus(`Sound changed to ${soundOptions.find((s) => s.key === state.sound)?.label ?? state.sound}.`);
-  });
+  els.tempoField.addEventListener('click', doTapTempo);
 
-  els.volumeSlider.addEventListener('input', (event) => {
-    state.volume = Number(event.target.value);
-    saveState();
-  });
-
-  const startDrag = (clientY) => {
-    state.draggingTempo = true;
-    state.dragStartY = clientY;
-    state.dragStartBpm = state.bpm;
+  const beginDrag = (y) => {
+    state.dragActive = true;
+    state.dragStartY = y;
+    state.dragInitialBpm = state.bpm;
   };
-
-  const onDrag = (clientY) => {
-    if (!state.draggingTempo) return;
-    const delta = (state.dragStartY - clientY) / 20;
-    setBpm(state.dragStartBpm + delta);
+  const moveDrag = (y) => {
+    if (!state.dragActive) return;
+    const delta = (state.dragStartY - y) / 20;
+    setBpm(state.dragInitialBpm + delta);
   };
-
   const endDrag = () => {
-    state.draggingTempo = false;
+    state.dragActive = false;
   };
 
-  els.tempoRing.addEventListener('pointerdown', (event) => {
-    els.tempoRing.setPointerCapture(event.pointerId);
-    startDrag(event.clientY);
+  els.tempoStage = document.querySelector('.tempo-stage');
+  els.tempoStage.addEventListener('pointerdown', (e) => {
+    els.tempoStage.setPointerCapture(e.pointerId);
+    beginDrag(e.clientY);
   });
-  els.tempoRing.addEventListener('pointermove', (event) => onDrag(event.clientY));
-  els.tempoRing.addEventListener('pointerup', endDrag);
-  els.tempoRing.addEventListener('pointercancel', endDrag);
+  els.tempoStage.addEventListener('pointermove', (e) => moveDrag(e.clientY));
+  els.tempoStage.addEventListener('pointerup', endDrag);
+  els.tempoStage.addEventListener('pointercancel', endDrag);
 
-  window.addEventListener('keydown', (event) => {
-    if (event.code === 'Space') {
-      event.preventDefault();
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
       togglePlay();
-    } else if (event.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp') {
       setBpm(state.bpm + 1);
-    } else if (event.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown') {
       setBpm(state.bpm - 1);
-    } else if (event.key.toLowerCase() === 't') {
-      handleTapTempo();
+    } else if (e.key === '[') {
+      adjustBeats(-1);
+    } else if (e.key === ']') {
+      adjustBeats(1);
+    } else if (e.key.toLowerCase() === 't') {
+      doTapTempo();
     }
   });
 }
 
-renderAll();
+render();
 attachEvents();
-updateStatus('Ready. Press Start, Space, or tap tempo.');
