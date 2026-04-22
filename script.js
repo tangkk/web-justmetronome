@@ -41,6 +41,7 @@ const state = {
   focusTimerDragStartY: 0,
   focusTimerDragInitialMinutes: 25,
   audioUnlocked: false,
+  togglePlayBusy: false,
 };
 
 const els = {
@@ -413,13 +414,19 @@ function adjustBeats(delta) {
 }
 
 async function togglePlay() {
-  await unlockAudio();
-  if (state.isPlaying) {
-    metronome.stop();
-    render();
-  } else {
-    await metronome.start();
-    render();
+  if (state.togglePlayBusy) return;
+  state.togglePlayBusy = true;
+  try {
+    await unlockAudio();
+    if (state.isPlaying) {
+      metronome.stop();
+      render();
+    } else {
+      await metronome.start();
+      render();
+    }
+  } finally {
+    state.togglePlayBusy = false;
   }
 }
 
