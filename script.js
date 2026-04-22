@@ -33,10 +33,16 @@ const state = {
   dragActive: false,
   dragStartY: 0,
   dragInitialBpm: 120,
+  focusTimerSeconds: 25 * 60,
+  focusTimerRunning: false,
+  focusTimerIntervalId: null,
 };
 
 const els = {
   app: document.querySelector('.app'),
+  focusTimerDisplay: document.getElementById('focusTimerDisplay'),
+  focusTimerStartPause: document.getElementById('focusTimerStartPause'),
+  focusTimerReset: document.getElementById('focusTimerReset'),
   playStateBtn: document.getElementById('playStateBtn'),
   prefsResetBtn: document.getElementById('prefsResetBtn'),
   tempoButton: document.getElementById('tempoButton'),
@@ -222,7 +228,15 @@ function render() {
   els.volumeSlider.value = String(state.volume);
   els.playHint.textContent = '';
   els.app.classList.toggle('is-playing', state.isPlaying);
+  renderFocusTimer();
   renderBeats();
+}
+
+function renderFocusTimer() {
+  const min = Math.floor(state.focusTimerSeconds / 60);
+  const sec = state.focusTimerSeconds % 60;
+  els.focusTimerDisplay.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  els.focusTimerStartPause.textContent = state.focusTimerRunning ? 'Pause' : 'Start';
 }
 
 function renderBeats() {
@@ -365,10 +379,49 @@ function clearCurrentBeat() {
   document.querySelectorAll('.beat-btn.current').forEach((el) => el.classList.remove('current'));
 }
 
+function startFocusTimer() {
+  if (state.focusTimerRunning) return;
+  state.focusTimerRunning = true;
+  state.focusTimerIntervalId = window.setInterval(() => {
+    if (state.focusTimerSeconds > 0) {
+      state.focusTimerSeconds -= 1;
+      renderFocusTimer();
+    } else {
+      pauseFocusTimer();
+    }
+  }, 1000);
+  renderFocusTimer();
+}
+
+function pauseFocusTimer() {
+  state.focusTimerRunning = false;
+  if (state.focusTimerIntervalId) {
+    clearInterval(state.focusTimerIntervalId);
+    state.focusTimerIntervalId = null;
+  }
+  renderFocusTimer();
+}
+
+function resetFocusTimer() {
+  pauseFocusTimer();
+  state.focusTimerSeconds = 25 * 60;
+  renderFocusTimer();
+}
+
+function toggleFocusTimer() {
+  if (state.focusTimerRunning) {
+    pauseFocusTimer();
+  } else {
+    startFocusTimer();
+  }
+}
+
 
 function attachEvents() {
   els.playStateBtn.addEventListener('click', changeSound);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
+  els.focusTimerStartPause.addEventListener('click', toggleFocusTimer);
+  els.focusTimerReset.addEventListener('click', resetFocusTimer);
   els.tempoButton.addEventListener('click', (e) => {
     e.stopPropagation();
     togglePlay();
