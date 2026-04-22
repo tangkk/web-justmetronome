@@ -667,6 +667,15 @@ function attachEvents() {
     saveState();
   }, { passive: false });
 
+  const beatMaskWheelHandler = (e) => {
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -1 : 1;
+    adjustBeats(delta);
+  };
+  els.beatStack.addEventListener('wheel', beatMaskWheelHandler, { passive: false });
+  els.beatOptStack.addEventListener('wheel', beatMaskWheelHandler, { passive: false });
+
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
       e.preventDefault();
