@@ -658,6 +658,15 @@ function attachEvents() {
     setBpm(state.bpm + delta);
   }, { passive: false });
 
+  els.volumeSlider.addEventListener('wheel', (e) => {
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    state.volume = Math.max(0, Math.min(2, Number((state.volume + delta).toFixed(2))));
+    els.volumeSlider.value = String(state.volume);
+    saveState();
+  }, { passive: false });
+
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
       e.preventDefault();
