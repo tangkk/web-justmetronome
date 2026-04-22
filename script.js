@@ -47,7 +47,6 @@ const els = {
   beatsValue: document.getElementById('beatsValue'),
   beatStack: document.getElementById('beatStack'),
   beatOptStack: document.getElementById('beatOptStack'),
-  tapTempoBtn: document.getElementById('tapTempoBtn'),
   firstBeatBtn: document.getElementById('firstBeatBtn'),
   volumeSlider: document.getElementById('volumeSlider'),
   playHint: document.getElementById('playHint'),
@@ -378,7 +377,6 @@ function attachEvents() {
     e.stopPropagation();
     togglePlay();
   });
-  els.tapTempoBtn.addEventListener('click', doTapTempo);
   els.firstBeatBtn.addEventListener('click', cycleFirstBeatTap);
   els.volumeSlider.addEventListener('input', (e) => {
     state.volume = Number(e.target.value);
@@ -418,6 +416,11 @@ function attachEvents() {
     if (!wasDragging) togglePlay();
   });
   els.tempoStage.addEventListener('pointercancel', endDrag);
+
+  els.app.addEventListener('click', (e) => {
+    const interactive = e.target.closest('button, input, label, .tempo-stage, .stepper-row, .beat-stack');
+    if (!interactive) doTapTempo();
+  });
 
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
