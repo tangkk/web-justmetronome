@@ -3,7 +3,6 @@ const BPM_MIN = 10;
 const BPM_MAX = 360;
 const BEATS_MIN = 1;
 const BEATS_MAX = 16;
-const RING_CIRCUMFERENCE = 2 * Math.PI * 92;
 
 const metSoundList = [
   { key: 'just-click', label: 'Just Click', file: 'assets/just-click.wav' },
@@ -98,7 +97,6 @@ class WebMetronome {
       state.schedulerId = null;
     }
     clearCurrentBeat();
-    setRingProgress(0);
   }
 
   restartIfPlaying() {
@@ -125,10 +123,7 @@ class WebMetronome {
 
     setTimeout(() => {
       highlightBeat(index);
-      animatePulse();
     }, delayMs);
-
-    animateRing(time);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
       this.click(time, isAccent);
@@ -230,7 +225,7 @@ function render() {
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
   els.soundLabel.textContent = `Sound: ${metSoundList[state.playState].label}`;
   els.firstBeatBtn.textContent = `1st: ${['Normal', 'Muted', 'Accent'][state.firstBeatState]}`;
-  els.playHint.textContent = state.isPlaying ? 'Tap center to stop' : 'Tap center to start';
+  els.playHint.textContent = state.isPlaying ? 'Press Space to stop' : 'Press Space to start';
   els.app.classList.toggle('is-playing', state.isPlaying);
   renderBeats();
 }
@@ -375,43 +370,14 @@ function clearCurrentBeat() {
   document.querySelectorAll('.beat-btn.current').forEach((el) => el.classList.remove('current'));
 }
 
-function setRingProgress(progress) {
-  els.ringProgress.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - Math.max(0, Math.min(1, progress))));
-}
-
-function animateRing(scheduledTime) {
-  const beatMs = (60 / state.bpm) * 1000;
-  const startAt = performance.now() + Math.max(0, (scheduledTime - (metronome.audioCtx?.currentTime ?? 0)) * 1000);
-  const loop = (now) => {
-    if (!state.isPlaying) {
-      setRingProgress(0);
-      return;
-    }
-    const progress = Math.max(0, Math.min(1, (now - startAt) / beatMs));
-    setRingProgress(progress);
-    if (progress < 1) requestAnimationFrame(loop);
-  };
-  requestAnimationFrame(loop);
-}
-
-function animatePulse() {
-  els.tempoField.animate([
-    { opacity: 1 },
-    { opacity: 0.35 },
-    { opacity: 1 },
-  ], { duration: 160, easing: 'ease-out' });
-}
 
 function attachEvents() {
   els.playStateBtn.addEventListener('click', changeSound);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
-  els.tempoButton.addEventListener('click', togglePlay);
   els.tapTempoBtn.addEventListener('click', doTapTempo);
   els.firstBeatBtn.addEventListener('click', cycleFirstBeatTap);
   els.beatsMinusBtn.addEventListener('click', () => adjustBeats(-1));
   els.beatsPlusBtn.addEventListener('click', () => adjustBeats(1));
-
-  els.tempoField.addEventListener('click', doTapTempo);
 
   const beginDrag = (y) => {
     state.dragActive = true;

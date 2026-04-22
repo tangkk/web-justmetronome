@@ -117,7 +117,7 @@ button {
   stroke: var(--ring);
   stroke-linecap: round;
   stroke-dasharray: 578.05;
-  stroke-dashoffset: 578.05;
+  stroke-dashoffset: 0;
 }
 
 .tempo-button {
@@ -126,20 +126,11 @@ button {
   top: 60px;
   width: 100px;
   height: 100px;
-  border: 1px dashed transparent;
+  border: 0;
   background: transparent;
-  cursor: pointer;
   z-index: 2;
   border-radius: 18px;
-}
-
-.tempo-button:hover {
-  border-color: #d8d8d8;
-}
-
-.app.is-playing .tempo-button {
-  border-color: #000;
-  background: rgba(0, 0, 0, 0.03);
+  pointer-events: none;
 }
 
 .tempo-field {
@@ -257,6 +248,10 @@ button {
 
 .app.is-playing .play-hint {
   color: var(--fg);
+}
+
+.app.is-playing .tempo-field {
+  font-weight: 500;
 }
 
 @media (max-width: 414px) {
