@@ -223,7 +223,7 @@ button {
   background: var(--active);
   border-radius: 4px;
   position: relative;
-  left: 2px;
+  left: 4px;
   top: -1px;
 }
 
