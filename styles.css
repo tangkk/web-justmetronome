@@ -4,7 +4,6 @@
   --muted: #6a6a6a;
   --light: #f3f3f3;
   --line: #d7d7d7;
-  --active: #dcdcdc;
   --ring: #000000;
 }
 
@@ -217,14 +216,18 @@ button {
   cursor: pointer;
   font-size: 21px;
   line-height: 1;
+  position: relative;
 }
 
-.beat-btn.current {
-  background: var(--active);
-  border-radius: 4px;
-  position: relative;
-  left: 4px;
-  top: -1px;
+.beat-btn.current::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  right: 1px;
+  bottom: -2px;
+  height: 1.5px;
+  background: #000;
+  border-radius: 999px;
 }
 
 .bottom-tools {
