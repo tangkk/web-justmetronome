@@ -345,7 +345,7 @@ function doTapTempo() {
   if (state.tapSequence.length && now - state.tapSequence[state.tapSequence.length - 1] > 2000) {
     state.tapSequence = [];
   }
-  if (state.tapSequence.length > 6) {
+  if (state.tapSequence.length > 10) {
     state.tapSequence.shift();
   }
   state.tapSequence.push(now);
