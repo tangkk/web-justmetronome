@@ -67,7 +67,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid #000;
+  border: 2px solid #000;
   border-radius: 8px;
   background: #fff;
   color: #000;
@@ -75,9 +75,10 @@ button {
 }
 
 .timer-display {
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
   color: var(--fg);
 }
 
