@@ -37,6 +37,9 @@ const state = {
   focusTimerRunning: false,
   focusTimerIntervalId: null,
   focusTimerDing: null,
+  focusTimerDragActive: false,
+  focusTimerDragStartY: 0,
+  focusTimerDragInitialMinutes: 25,
 };
 
 const els = {
@@ -238,6 +241,12 @@ function renderFocusTimer() {
   els.focusTimerDisplay.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
+function setFocusTimerMinutes(nextMinutes) {
+  const minutes = Math.max(1, Math.min(180, Math.round(nextMinutes)));
+  state.focusTimerSeconds = minutes * 60;
+  renderFocusTimer();
+}
+
 function renderBeats() {
   els.beatStack.innerHTML = '';
   els.beatOptStack.innerHTML = '';
@@ -431,7 +440,29 @@ function playFocusTimerDing() {
 function attachEvents() {
   els.playStateBtn.addEventListener('click', changeSound);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
-  els.focusTimerBox.addEventListener('click', toggleFocusTimer);
+  let focusTimerDragMoved = false;
+  els.focusTimerBox.addEventListener('pointerdown', (e) => {
+    els.focusTimerBox.setPointerCapture(e.pointerId);
+    focusTimerDragMoved = false;
+    state.focusTimerDragActive = true;
+    state.focusTimerDragStartY = e.clientY;
+    state.focusTimerDragInitialMinutes = Math.max(1, Math.round(state.focusTimerSeconds / 60));
+  });
+  els.focusTimerBox.addEventListener('pointermove', (e) => {
+    if (!state.focusTimerDragActive) return;
+    const deltaY = state.focusTimerDragStartY - e.clientY;
+    if (Math.abs(deltaY) > 4) focusTimerDragMoved = true;
+    const minuteDelta = deltaY / 20;
+    setFocusTimerMinutes(state.focusTimerDragInitialMinutes + minuteDelta);
+  });
+  els.focusTimerBox.addEventListener('pointerup', () => {
+    const wasDragging = focusTimerDragMoved;
+    state.focusTimerDragActive = false;
+    if (!wasDragging) toggleFocusTimer();
+  });
+  els.focusTimerBox.addEventListener('pointercancel', () => {
+    state.focusTimerDragActive = false;
+  });
   els.focusTimerBox.addEventListener('dblclick', (e) => {
     e.preventDefault();
     resetFocusTimer();
