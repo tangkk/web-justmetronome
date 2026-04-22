@@ -42,6 +42,8 @@ body {
 
 button {
   font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .app {
@@ -58,7 +60,7 @@ button {
 
 .timer-box {
   position: absolute;
-  top: 20px;
+  top: 24px;
   left: 50%;
   transform: translateX(-50%);
   min-width: 140px;
@@ -72,6 +74,14 @@ button {
   background: #fff;
   color: #000;
   cursor: pointer;
+  outline: none;
+  box-shadow: none;
+}
+
+.timer-box:focus,
+.timer-box:active {
+  outline: none;
+  box-shadow: none;
 }
 
 .timer-display {
@@ -80,6 +90,8 @@ button {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: var(--fg);
+  letter-spacing: 0.02em;
+  pointer-events: none;
 }
 
 .prefs-row {
