@@ -2,6 +2,10 @@
 
 A minimal, distraction-free web metronome inspired by the original iOS JustMetronome app.
 
+## Product page
+
+https://tangkk.github.io/web-justmetronome/
+
 ## Introduction
 
 **JustMetronome for Web** is a focused metronome designed for practice sessions that should feel calm, clean, and immediate.
