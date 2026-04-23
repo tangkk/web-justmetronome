@@ -3,11 +3,86 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JustMetronome</title>
-    <meta name="description" content="JustMetronome web app" />
+    <title>JustMetronome for Web - Free Online Metronome with Timer</title>
+    <meta
+      name="description"
+      content="JustMetronome for Web is a free online metronome for desktop practice, with tap tempo, beat mute control, multiple click sounds, adjustable BPM, and a built-in focus timer."
+    />
+    <meta
+      name="keywords"
+      content="online metronome, free metronome, web metronome, browser metronome, tap tempo metronome, practice timer, BPM tool, rhythm practice"
+    />
+    <meta name="author" content="tangkk" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://tangkk.github.io/web-justmetronome/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="JustMetronome for Web - Free Online Metronome with Timer" />
+    <meta
+      property="og:description"
+      content="A minimal desktop web metronome with tap tempo, beat mute control, multiple sound styles, adjustable BPM, and a built-in focus timer."
+    />
+    <meta property="og:url" content="https://tangkk.github.io/web-justmetronome/" />
+    <meta property="og:site_name" content="JustMetronome for Web" />
+    <meta property="og:image" content="https://tangkk.github.io/web-justmetronome/assets/og-cover.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="JustMetronome for Web preview card" />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="JustMetronome for Web - Free Online Metronome with Timer" />
+    <meta
+      name="twitter:description"
+      content="A minimal desktop web metronome with tap tempo, beat mute control, multiple sound styles, adjustable BPM, and a built-in focus timer."
+    />
+    <meta name="twitter:image" content="https://tangkk.github.io/web-justmetronome/assets/og-cover.png" />
+    <meta name="twitter:image:alt" content="JustMetronome for Web preview card" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="manifest" href="./site.webmanifest" />
+
     <link rel="stylesheet" href="./styles.css" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "JustMetronome for Web",
+        "url": "https://tangkk.github.io/web-justmetronome/",
+        "applicationCategory": "MusicApplication",
+        "operatingSystem": "Web Browser",
+        "browserRequirements": "Requires JavaScript. Optimized for desktop browsers.",
+        "description": "A minimal online metronome for desktop practice with adjustable BPM, tap tempo, beat muting, multiple click sounds, volume control, and a built-in focus timer.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "Adjustable BPM from 10 to 360",
+          "Tap tempo",
+          "Beat mute control",
+          "Multiple click sounds",
+          "Volume control",
+          "Built-in focus timer",
+          "Keyboard shortcuts"
+        ],
+        "creator": {
+          "@type": "Person",
+          "name": "tangkk"
+        }
+      }
+    </script>
   </head>
   <body>
+    <header class="sr-only">
+      <h1>JustMetronome for Web</h1>
+      <p>
+        A free online metronome for desktop music practice with tap tempo, adjustable BPM, beat mute
+        control, sound selection, and a built-in focus timer.
+      </p>
+    </header>
+
     <div id="mobileUnsupported" class="mobile-unsupported" hidden>
       <div class="mobile-unsupported-box">
         <div class="mobile-unsupported-title">Mobile Not Supported</div>
@@ -16,42 +91,57 @@
     </div>
 
     <div class="device-shell">
-      <main class="app">
-      <button id="focusTimerBox" class="timer-box" aria-label="Focus timer">
-        <div id="focusTimerDisplay" class="timer-display">25:00</div>
-      </button>
+      <main class="app" aria-label="JustMetronome practice tool">
+        <button id="focusTimerBox" class="timer-box" aria-label="Focus timer">
+          <div id="focusTimerDisplay" class="timer-display">25:00</div>
+        </button>
 
-      <div class="prefs-row">
-        <button id="playStateBtn" class="icon-btn sound-btn" aria-label="Change sound">⍥</button>
-        <button id="tapTempoBtn" class="icon-btn tap-btn" aria-label="Tap tempo">◉</button>
-        <button id="prefsResetBtn" class="icon-btn reset-btn" aria-label="Reset preferences">⌾</button>
-      </div>
+        <div class="prefs-row" aria-label="Metronome controls">
+          <button id="playStateBtn" class="icon-btn sound-btn" aria-label="Change sound">⍥</button>
+          <button id="tapTempoBtn" class="icon-btn tap-btn" aria-label="Tap tempo">◉</button>
+          <button id="prefsResetBtn" class="icon-btn reset-btn" aria-label="Reset preferences">⌾</button>
+        </div>
 
-      <section class="tempo-stage">
-        <svg class="progress-ring" viewBox="0 0 220 220" aria-hidden="true">
-          <circle class="ring-track" cx="110" cy="110" r="92"></circle>
-          <circle class="ring-progress" id="ringProgress" cx="110" cy="110" r="92"></circle>
-        </svg>
-        <button id="tempoButton" class="tempo-button" aria-label="Start or stop metronome"></button>
-        <div id="tempoField" class="tempo-field">120</div>
-      </section>
+        <section class="tempo-stage" aria-label="Tempo control">
+          <svg class="progress-ring" viewBox="0 0 220 220" aria-hidden="true">
+            <circle class="ring-track" cx="110" cy="110" r="92"></circle>
+            <circle class="ring-progress" id="ringProgress" cx="110" cy="110" r="92"></circle>
+          </svg>
+          <button id="tempoButton" class="tempo-button" aria-label="Start or stop metronome"></button>
+          <div id="tempoField" class="tempo-field" aria-live="polite">120</div>
+        </section>
 
-      <section class="stepper-row" aria-label="Number of beats">
-        <button id="beatsMinusBtn" class="stepper-btn" aria-label="Decrease number of beats">−</button>
-        <button id="beatsPlusBtn" class="stepper-btn" aria-label="Increase number of beats">+</button>
-      </section>
+        <section class="stepper-row" aria-label="Number of beats">
+          <button id="beatsMinusBtn" class="stepper-btn" aria-label="Decrease number of beats">−</button>
+          <button id="beatsPlusBtn" class="stepper-btn" aria-label="Increase number of beats">+</button>
+        </section>
 
-      <section id="beatStack" class="beat-stack primary-row" aria-label="Beat row 1"></section>
-      <section id="beatOptStack" class="beat-stack secondary-row" aria-label="Beat row 2"></section>
+        <section id="beatStack" class="beat-stack primary-row" aria-label="Beat row 1"></section>
+        <section id="beatOptStack" class="beat-stack secondary-row" aria-label="Beat row 2"></section>
 
-      <div class="bottom-tools">
-        <label class="volume-control">
-          <input id="volumeSlider" type="range" min="0" max="2" step="0.01" value="1" />
-        </label>
-      </div>
+        <div class="bottom-tools">
+          <label class="volume-control" aria-label="Volume control">
+            <span class="sr-only">Metronome volume</span>
+            <input id="volumeSlider" type="range" min="0" max="2" step="0.01" value="1" aria-label="Metronome volume" />
+          </label>
+        </div>
 
-      <div id="playHint" class="play-hint"></div>
-    </main>
+        <section class="sr-only" aria-label="How to use JustMetronome">
+          <h2>How to use</h2>
+          <p>
+            Click the center area or press Space to start and stop playback. Drag vertically on the BPM area
+            or use the mouse wheel to change tempo. Use tap tempo to detect a tempo manually, adjust beat
+            count, mute selected beats, switch click sounds, and control playback volume. The built-in timer
+            supports start, pause, reset, and minute adjustment for focused practice sessions.
+          </p>
+          <p>
+            JustMetronome is designed as a distraction-free browser metronome for musicians, students, drum
+            practice, piano practice, guitar practice, rhythm training, and general tempo work.
+          </p>
+        </section>
+
+        <div id="playHint" class="play-hint"></div>
+      </main>
     </div>
 
     <script type="module" src="./script.js"></script>
