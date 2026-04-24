@@ -70,6 +70,8 @@ class WebMetronome {
     this.audioCtx = null;
     this.lookaheadMs = 25;
     this.scheduleAhead = 0.1;
+    this.mobileLookaheadMs = 12;
+    this.mobileScheduleAhead = 0.18;
     this.buffers = new Map();
     this.htmlAudio = new Map();
     this.mobileAudioPools = new Map();
@@ -107,6 +109,7 @@ class WebMetronome {
       const audio = new Audio(file);
       audio.preload = 'auto';
       audio.playsInline = true;
+      audio.load();
       this.htmlAudio.set(file, audio);
     }
     if (!this.mobileAudioPools.has(file)) {
@@ -115,9 +118,35 @@ class WebMetronome {
         const audio = new Audio(file);
         audio.preload = 'auto';
         audio.playsInline = true;
+        audio.load();
         pool.push(audio);
       }
       this.mobileAudioPools.set(file, { index: 0, items: pool });
+    }
+  }
+
+  warmAudioFile(file) {
+    if (!file) return;
+    this.ensureHtmlAudio(file);
+    const baseAudio = this.htmlAudio.get(file);
+    if (baseAudio) {
+      try {
+        baseAudio.load();
+      } catch {}
+    }
+    const pool = this.mobileAudioPools.get(file);
+    if (!pool?.items?.length) return;
+    for (const audio of pool.items) {
+      try {
+        audio.load();
+      } catch {}
+    }
+  }
+
+  warmAllAudioFiles() {
+    for (const sound of metSoundList) {
+      if (!sound.file) continue;
+      this.warmAudioFile(sound.file);
     }
   }
 
@@ -160,13 +189,13 @@ class WebMetronome {
   }
 
   startMobilePreciseLoop() {
-    state.nextBeatTime = this.audioCtx.currentTime + 0.05;
+    state.nextBeatTime = this.audioCtx.currentTime + 0.08;
     this.schedulerMobile();
-    state.schedulerId = window.setInterval(() => this.schedulerMobile(), this.lookaheadMs);
+    state.schedulerId = window.setInterval(() => this.schedulerMobile(), this.mobileLookaheadMs);
   }
 
   schedulerMobile() {
-    while (state.nextBeatTime < this.audioCtx.currentTime + this.scheduleAhead) {
+    while (state.nextBeatTime < this.audioCtx.currentTime + this.mobileScheduleAhead) {
       this.scheduleBeatMobile(state.currentBeat, state.nextBeatTime);
       state.nextBeatTime += 60 / state.bpm;
       state.currentBeat = (state.currentBeat + 1) % state.numBeats;
@@ -180,14 +209,16 @@ class WebMetronome {
     const shouldPlay = !(firstBeatMuted || normalMuted || mutedByMode);
     const isAccent = index === 0 && state.firstBeatState === 2;
     const delayMs = Math.max(0, (time - this.audioCtx.currentTime) * 1000);
+    const visualLeadMs = 10;
 
     const visualId = window.setTimeout(() => {
       highlightBeat(index);
-      if (shouldPlay && state.playState < metSoundList.length - 1) {
-        this.playMobileBeatNow(isAccent);
-      }
-    }, delayMs);
+    }, Math.max(0, delayMs - visualLeadMs));
     this.mobileVisualTimeouts.push(visualId);
+
+    if (shouldPlay && state.playState < metSoundList.length - 1) {
+      this.clickMobilePrecise(time, isAccent);
+    }
   }
 
   clickMobilePrecise(time, accent) {
@@ -197,7 +228,7 @@ class WebMetronome {
     if (sound?.file) {
       const delayMs = Math.max(0, (time - (ctx?.currentTime ?? 0)) * 1000);
       const fallbackId = window.setTimeout(() => {
-        this.playMobileBeatNow(accent);
+        this.playFromMobileAudioPool(sound.file, accent);
       }, delayMs);
       this.mobileTickTimeouts.push(fallbackId);
       return;
@@ -209,27 +240,15 @@ class WebMetronome {
         const source = ctx.createBufferSource();
         const gain = ctx.createGain();
         source.buffer = buffer;
-        gain.gain.setValueAtTime(0.0001, time);
-        gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, Math.min(0.9, (accent ? 1.5 : 1) * state.volume * 0.3)), time + 0.001);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + Math.min(buffer.duration, 0.08));
+        gain.gain.setValueAtTime(Math.min(1.8, (accent ? 1.35 : 1) * state.volume), time);
         source.connect(gain);
         gain.connect(ctx.destination);
         source.start(time);
-        source.stop(time + Math.max(0.04, Math.min(buffer.duration, 0.12)));
         return;
       } catch {}
     }
 
     this.click(time, accent);
-  }
-
-  playMobileBeatNow(accent) {
-    const sound = metSoundList[state.playState];
-    if (sound?.file) {
-      this.playFromMobileAudioPool(sound.file, accent);
-      return;
-    }
-    this.click(this.audioCtx?.currentTime ?? 0, accent);
   }
 
   playFromMobileAudioPool(file, accent) {
@@ -504,6 +523,8 @@ async function togglePlay() {
 function changeSound() {
   state.playState += 1;
   if (state.playState >= metSoundList.length) state.playState = 0;
+  const currentSound = metSoundList[state.playState];
+  if (currentSound?.file) metronome.warmAudioFile(currentSound.file);
   saveState();
   render();
   metronome.restartIfPlaying();
@@ -604,14 +625,12 @@ async function unlockAudio() {
   if (state.audioUnlocked) return;
   try {
     await metronome.ensureAudio();
+    metronome.warmAllAudioFiles();
     if (!state.focusTimerDing) {
       state.focusTimerDing = new Audio('assets/focus-ding.mp3');
       state.focusTimerDing.preload = 'auto';
       state.focusTimerDing.playsInline = true;
-    }
-    for (const sound of metSoundList) {
-      if (!sound.file) continue;
-      metronome.ensureHtmlAudio(sound.file);
+      state.focusTimerDing.load();
     }
     state.focusTimerDing.muted = true;
     await state.focusTimerDing.play().catch(() => {});
@@ -903,9 +922,17 @@ document.documentElement.style.overflow = 'hidden';
 document.body.style.overflow = 'hidden';
 
 document.body.addEventListener('touchmove', (e) => {
-  const interactiveTarget = e.target instanceof Element && e.target.closest('.tempo-stage, #focusTimerBox');
+  const interactiveTarget = e.target instanceof Element && e.target.closest('.tempo-stage, #focusTimerBox, #volumeSlider, .volume-control');
   if (!interactiveTarget) e.preventDefault();
 }, { passive: false });
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  window.setTimeout(() => metronome.warmAllAudioFiles(), 0);
+} else {
+  window.addEventListener('DOMContentLoaded', () => {
+    window.setTimeout(() => metronome.warmAllAudioFiles(), 0);
+  }, { once: true });
+}
 
 render();
 attachEvents();
