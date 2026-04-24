@@ -43,6 +43,7 @@ const state = {
   focusTimerLongPressTimeoutId: null,
   audioUnlocked: false,
   togglePlayBusy: false,
+  suppressNextTempoStageToggle: false,
 };
 
 const els = {
@@ -71,7 +72,10 @@ class WebMetronome {
     this.scheduleAhead = 0.1;
     this.buffers = new Map();
     this.htmlAudio = new Map();
+    this.mobileAudioPools = new Map();
+    this.mobileAudioPoolSize = 6;
     this.mobileTickTimeouts = [];
+    this.mobileVisualTimeouts = [];
   }
 
   async ensureAudio() {
@@ -89,12 +93,7 @@ class WebMetronome {
     const sound = metSoundList[state.playState];
     if (!sound || !sound.file) return;
 
-    if (!this.htmlAudio.has(sound.file)) {
-      const audio = new Audio(sound.file);
-      audio.preload = 'auto';
-      audio.playsInline = true;
-      this.htmlAudio.set(sound.file, audio);
-    }
+    this.ensureHtmlAudio(sound.file);
 
     if (this.buffers.has(sound.file)) return;
     const res = await fetch(sound.file);
@@ -103,13 +102,32 @@ class WebMetronome {
     this.buffers.set(sound.file, buffer);
   }
 
+  ensureHtmlAudio(file) {
+    if (!this.htmlAudio.has(file)) {
+      const audio = new Audio(file);
+      audio.preload = 'auto';
+      audio.playsInline = true;
+      this.htmlAudio.set(file, audio);
+    }
+    if (!this.mobileAudioPools.has(file)) {
+      const pool = [];
+      for (let i = 0; i < this.mobileAudioPoolSize; i += 1) {
+        const audio = new Audio(file);
+        audio.preload = 'auto';
+        audio.playsInline = true;
+        pool.push(audio);
+      }
+      this.mobileAudioPools.set(file, { index: 0, items: pool });
+    }
+  }
+
   async start() {
     await this.ensureAudio();
     state.isPlaying = true;
     state.currentBeat = 0;
 
     if (this.isMobileAudioMode()) {
-      this.startMobileLoop();
+      this.startMobilePreciseLoop();
       return;
     }
 
@@ -126,6 +144,8 @@ class WebMetronome {
     }
     this.mobileTickTimeouts.forEach((id) => clearTimeout(id));
     this.mobileTickTimeouts = [];
+    this.mobileVisualTimeouts.forEach((id) => clearTimeout(id));
+    this.mobileVisualTimeouts = [];
     clearCurrentBeat();
   }
 
@@ -139,42 +159,92 @@ class WebMetronome {
     return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   }
 
-  startMobileLoop() {
-    const tick = () => {
-      if (!state.isPlaying) return;
-      const index = state.currentBeat;
-      const firstBeatMuted = index === 0 && state.firstBeatState === 0 && state.beatMask.includes(0);
-      const normalMuted = index !== 0 && state.beatMask.includes(index);
-      const mutedByMode = index === 0 && state.firstBeatState === 1;
-      const shouldPlay = !(firstBeatMuted || normalMuted || mutedByMode);
-      const isAccent = index === 0 && state.firstBeatState === 2;
-
-      highlightBeat(index);
-      if (shouldPlay && state.playState < metSoundList.length - 1) {
-        this.playImmediateMobileClick(isAccent);
-      }
-
-      state.currentBeat = (state.currentBeat + 1) % state.numBeats;
-      const id = window.setTimeout(tick, 60000 / state.bpm);
-      this.mobileTickTimeouts.push(id);
-    };
-
-    tick();
+  startMobilePreciseLoop() {
+    state.nextBeatTime = this.audioCtx.currentTime + 0.05;
+    this.schedulerMobile();
+    state.schedulerId = window.setInterval(() => this.schedulerMobile(), this.lookaheadMs);
   }
 
-  playImmediateMobileClick(accent) {
+  schedulerMobile() {
+    while (state.nextBeatTime < this.audioCtx.currentTime + this.scheduleAhead) {
+      this.scheduleBeatMobile(state.currentBeat, state.nextBeatTime);
+      state.nextBeatTime += 60 / state.bpm;
+      state.currentBeat = (state.currentBeat + 1) % state.numBeats;
+    }
+  }
+
+  scheduleBeatMobile(index, time) {
+    const firstBeatMuted = index === 0 && state.firstBeatState === 0 && state.beatMask.includes(0);
+    const normalMuted = index !== 0 && state.beatMask.includes(index);
+    const mutedByMode = index === 0 && state.firstBeatState === 1;
+    const shouldPlay = !(firstBeatMuted || normalMuted || mutedByMode);
+    const isAccent = index === 0 && state.firstBeatState === 2;
+    const delayMs = Math.max(0, (time - this.audioCtx.currentTime) * 1000);
+
+    const visualId = window.setTimeout(() => {
+      highlightBeat(index);
+      if (shouldPlay && state.playState < metSoundList.length - 1) {
+        this.playMobileBeatNow(isAccent);
+      }
+    }, delayMs);
+    this.mobileVisualTimeouts.push(visualId);
+  }
+
+  clickMobilePrecise(time, accent) {
+    const ctx = this.audioCtx;
     const sound = metSoundList[state.playState];
-    const baseAudio = sound?.file ? this.htmlAudio.get(sound.file) : null;
-    if (baseAudio) {
-      const audio = baseAudio.cloneNode();
-      audio.volume = Math.min(1, (accent ? 1.6 : 1) * state.volume);
-      audio.playsInline = true;
-      audio.currentTime = 0;
-      audio.play().catch(() => {});
+
+    if (sound?.file) {
+      const delayMs = Math.max(0, (time - (ctx?.currentTime ?? 0)) * 1000);
+      const fallbackId = window.setTimeout(() => {
+        this.playMobileBeatNow(accent);
+      }, delayMs);
+      this.mobileTickTimeouts.push(fallbackId);
       return;
     }
 
+    const buffer = sound?.file ? this.buffers.get(sound.file) : null;
+    if (buffer) {
+      try {
+        const source = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        source.buffer = buffer;
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, Math.min(0.9, (accent ? 1.5 : 1) * state.volume * 0.3)), time + 0.001);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + Math.min(buffer.duration, 0.08));
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        source.start(time);
+        source.stop(time + Math.max(0.04, Math.min(buffer.duration, 0.12)));
+        return;
+      } catch {}
+    }
+
+    this.click(time, accent);
+  }
+
+  playMobileBeatNow(accent) {
+    const sound = metSoundList[state.playState];
+    if (sound?.file) {
+      this.playFromMobileAudioPool(sound.file, accent);
+      return;
+    }
     this.click(this.audioCtx?.currentTime ?? 0, accent);
+  }
+
+  playFromMobileAudioPool(file, accent) {
+    this.ensureHtmlAudio(file);
+    const pool = this.mobileAudioPools.get(file);
+    if (!pool?.items?.length) return;
+    const audio = pool.items[pool.index % pool.items.length];
+    pool.index = (pool.index + 1) % pool.items.length;
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch {}
+    audio.volume = Math.min(1, (accent ? 1.5 : 1) * state.volume);
+    audio.playsInline = true;
+    audio.play().catch(() => {});
   }
 
   scheduler() {
@@ -532,7 +602,6 @@ function playFocusTimerDing() {
 
 async function unlockAudio() {
   if (state.audioUnlocked) return;
-  state.audioUnlocked = true;
   try {
     await metronome.ensureAudio();
     if (!state.focusTimerDing) {
@@ -542,26 +611,45 @@ async function unlockAudio() {
     }
     for (const sound of metSoundList) {
       if (!sound.file) continue;
-      let audio = metronome.htmlAudio.get(sound.file);
-      if (!audio) {
-        audio = new Audio(sound.file);
-        audio.preload = 'auto';
-        audio.playsInline = true;
-        metronome.htmlAudio.set(sound.file, audio);
-      }
+      metronome.ensureHtmlAudio(sound.file);
     }
     state.focusTimerDing.muted = true;
     await state.focusTimerDing.play().catch(() => {});
     state.focusTimerDing.pause();
     state.focusTimerDing.currentTime = 0;
     state.focusTimerDing.muted = false;
-  } catch {}
+
+    for (const sound of metSoundList) {
+      if (!sound.file) continue;
+      const baseAudio = metronome.htmlAudio.get(sound.file);
+      if (baseAudio) {
+        baseAudio.muted = true;
+        await baseAudio.play().catch(() => {});
+        baseAudio.pause();
+        baseAudio.currentTime = 0;
+        baseAudio.muted = false;
+      }
+      const pool = metronome.mobileAudioPools.get(sound.file);
+      if (!pool?.items?.length) continue;
+      const audio = pool.items[0];
+      audio.muted = true;
+      await audio.play().catch(() => {});
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+    }
+
+    state.audioUnlocked = true;
+  } catch {
+    state.audioUnlocked = false;
+  }
 }
 
 
 function attachEvents() {
   const primeAudio = () => unlockAudio();
   window.addEventListener('touchstart', primeAudio, { passive: true, once: true });
+  window.addEventListener('touchend', primeAudio, { passive: true, once: true });
   window.addEventListener('pointerdown', primeAudio, { passive: true, once: true });
   window.addEventListener('click', primeAudio, { passive: true, once: true });
 
@@ -578,6 +666,7 @@ function attachEvents() {
   };
 
   els.focusTimerBox.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
     els.focusTimerBox.setPointerCapture(e.pointerId);
     focusTimerDragMoved = false;
     focusTimerLongPressTriggered = false;
@@ -594,6 +683,7 @@ function attachEvents() {
   });
   els.focusTimerBox.addEventListener('pointermove', (e) => {
     if (!state.focusTimerDragActive) return;
+    e.preventDefault();
     const deltaY = state.focusTimerDragStartY - e.clientY;
     if (Math.abs(deltaY) > 4) {
       focusTimerDragMoved = true;
@@ -602,7 +692,8 @@ function attachEvents() {
     const minuteDelta = deltaY / 20;
     setFocusTimerMinutes(state.focusTimerDragInitialMinutes + minuteDelta);
   });
-  els.focusTimerBox.addEventListener('pointerup', () => {
+  els.focusTimerBox.addEventListener('pointerup', (e) => {
+    e.preventDefault();
     const wasDragging = focusTimerDragMoved;
     const wasLongPress = focusTimerLongPressTriggered;
     state.focusTimerDragActive = false;
@@ -617,15 +708,34 @@ function attachEvents() {
     e.preventDefault();
     resetFocusTimer();
   });
-  els.tempoButton.addEventListener('click', (e) => {
+  const onTempoButtonToggle = async (e) => {
+    e.stopPropagation();
+    state.suppressNextTempoStageToggle = true;
+    window.setTimeout(() => {
+      state.suppressNextTempoStageToggle = false;
+    }, 350);
+    await togglePlay();
+  };
+
+  els.tempoButton.addEventListener('click', onTempoButtonToggle);
+  els.tempoButton.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
   });
+  els.tempoButton.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+  }, { passive: true });
   els.volumeSlider.addEventListener('input', (e) => {
     state.volume = Number(e.target.value);
     saveState();
   });
   els.beatsMinusBtn.addEventListener('click', () => adjustBeats(-1));
   els.beatsPlusBtn.addEventListener('click', () => adjustBeats(1));
+
+  const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isBpmSlideTarget = (target) => {
+    if (!(target instanceof Element)) return false;
+    return !target.closest('#focusTimerBox, #tempoButton, .prefs-row, .stepper-row, #beatStack, #beatOptStack, .bottom-tools, input, button, label');
+  };
 
   const beginDrag = (y) => {
     state.dragActive = true;
@@ -645,37 +755,81 @@ function attachEvents() {
   let dragMoved = false;
   let touchStartY = 0;
 
-  const finishTempoTap = async () => {
+  const finishTempoTap = async (event) => {
+    const target = event?.target;
+    const endedOnTempoButton = target instanceof Element && target.closest('#tempoButton');
     const wasDragging = dragMoved;
     endDrag();
-    if (!wasDragging) await togglePlay();
+    if (state.suppressNextTempoStageToggle) return;
+    if (!wasDragging && !endedOnTempoButton) await togglePlay();
   };
 
   els.tempoStage.addEventListener('pointerdown', (e) => {
+    if (isMobileDevice) return;
+    e.preventDefault();
     els.tempoStage.setPointerCapture?.(e.pointerId);
     dragMoved = false;
     touchStartY = e.clientY;
     beginDrag(e.clientY);
   });
   els.tempoStage.addEventListener('pointermove', (e) => {
-    if (state.dragActive && Math.abs(e.clientY - touchStartY) > 4) dragMoved = true;
+    if (isMobileDevice) return;
+    if (!state.dragActive) return;
+    e.preventDefault();
+    if (Math.abs(e.clientY - touchStartY) > 4) dragMoved = true;
     moveDrag(e.clientY);
   });
-  els.tempoStage.addEventListener('pointerup', finishTempoTap);
-  els.tempoStage.addEventListener('pointercancel', endDrag);
+  els.tempoStage.addEventListener('pointerup', (e) => {
+    if (isMobileDevice) return;
+    finishTempoTap(e);
+  });
+  els.tempoStage.addEventListener('pointercancel', () => {
+    if (isMobileDevice) return;
+    endDrag();
+  });
 
-  els.tempoStage.addEventListener('touchstart', (e) => {
+  const beginMobileBpmSlide = (e) => {
+    const target = e.target instanceof Element ? e.target : null;
+    if (!isBpmSlideTarget(target)) return;
+    e.preventDefault();
     const y = e.touches[0]?.clientY ?? 0;
     dragMoved = false;
     touchStartY = y;
     beginDrag(y);
-  }, { passive: true });
-  els.tempoStage.addEventListener('touchmove', (e) => {
+  };
+
+  const moveMobileBpmSlide = (e) => {
+    if (!state.dragActive) return;
+    e.preventDefault();
     const y = e.touches[0]?.clientY ?? 0;
-    if (state.dragActive && Math.abs(y - touchStartY) > 4) dragMoved = true;
+    if (Math.abs(y - touchStartY) > 4) dragMoved = true;
     moveDrag(y);
-  }, { passive: true });
-  els.tempoStage.addEventListener('touchend', finishTempoTap);
+  };
+
+  const endMobileBpmSlide = () => {
+    endDrag();
+    dragMoved = false;
+  };
+
+  document.addEventListener('touchstart', (e) => {
+    if (!isMobileDevice) return;
+    beginMobileBpmSlide(e);
+  }, { passive: false });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!isMobileDevice) return;
+    moveMobileBpmSlide(e);
+  }, { passive: false });
+
+  document.addEventListener('touchend', () => {
+    if (!isMobileDevice) return;
+    endMobileBpmSlide();
+  }, { passive: false });
+
+  document.addEventListener('touchcancel', () => {
+    if (!isMobileDevice) return;
+    endMobileBpmSlide();
+  }, { passive: false });
 
   els.focusTimerBox.addEventListener('wheel', (e) => {
     if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return;
@@ -728,13 +882,30 @@ function attachEvents() {
 }
 
 function isMobileUnsupported() {
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  return false;
 }
 
-if (isMobileUnsupported()) {
-  els.mobileUnsupported.hidden = false;
-  document.querySelector('.device-shell').style.display = 'none';
-} else {
-  render();
-  attachEvents();
-}
+window.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+window.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+window.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+window.addEventListener('touchmove', (e) => {
+  const interactiveTarget = e.target instanceof Element && e.target.closest('.tempo-stage, #focusTimerBox');
+  if (interactiveTarget) e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('dblclick', (e) => {
+  const target = e.target instanceof Element ? e.target : null;
+  const isControl = target?.closest('button, input, label, .tempo-stage, #focusTimerBox');
+  if (!isControl) e.preventDefault();
+}, { passive: false });
+
+document.documentElement.style.overflow = 'hidden';
+document.body.style.overflow = 'hidden';
+
+document.body.addEventListener('touchmove', (e) => {
+  const interactiveTarget = e.target instanceof Element && e.target.closest('.tempo-stage, #focusTimerBox');
+  if (!interactiveTarget) e.preventDefault();
+}, { passive: false });
+
+render();
+attachEvents();

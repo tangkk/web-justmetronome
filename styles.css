@@ -20,6 +20,10 @@ body {
   color: var(--fg);
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   min-height: 100%;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 .sr-only {
@@ -36,10 +40,11 @@ body {
 
 body {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
 
 .mobile-unsupported {
@@ -78,13 +83,16 @@ body {
 }
 
 .device-shell {
-  width: 100%;
+  width: min(100%, 344px);
   max-width: 344px;
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
   border: 2px solid #1f1f1f;
   border-radius: 30px;
   padding: 7px;
   background: #fff;
   box-shadow: none;
+  overflow: hidden;
 }
 
 button {
@@ -105,7 +113,8 @@ button:active {
 .app {
   width: 100%;
   max-width: 310px;
-  min-height: 627px;
+  min-height: min(627px, calc(100vh - 38px));
+  min-height: min(627px, calc(100dvh - 38px));
   margin: 0 auto;
   position: relative;
   padding: 124px 18px 34px;
@@ -132,6 +141,7 @@ button:active {
   cursor: pointer;
   outline: none;
   box-shadow: none;
+  touch-action: none;
 }
 
 .timer-box:focus,
@@ -167,6 +177,7 @@ button:active {
   padding: 0;
   cursor: pointer;
   line-height: 1;
+  touch-action: manipulation;
 }
 
 .sound-btn {
@@ -194,6 +205,7 @@ button:active {
   height: 154px;
   margin: 162px auto 0;
   cursor: pointer;
+  touch-action: none;
 }
 
 .progress-ring {
@@ -233,6 +245,7 @@ button:active {
   z-index: 2;
   border-radius: 13px;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .tempo-stage:hover .tempo-button {
@@ -278,6 +291,7 @@ button:active {
   align-items: center;
   justify-content: center;
   padding: 0;
+  touch-action: manipulation;
 }
 
 .beat-stack {
