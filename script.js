@@ -901,7 +901,7 @@ function attachEvents() {
 }
 
 function isMobileUnsupported() {
-  return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
 window.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
@@ -926,13 +926,18 @@ document.body.addEventListener('touchmove', (e) => {
   if (!interactiveTarget) e.preventDefault();
 }, { passive: false });
 
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  window.setTimeout(() => metronome.warmAllAudioFiles(), 0);
+if (isMobileUnsupported()) {
+  els.mobileUnsupported.hidden = false;
+  document.querySelector('.device-shell').style.display = 'none';
 } else {
-  window.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
     window.setTimeout(() => metronome.warmAllAudioFiles(), 0);
-  }, { once: true });
-}
+  } else {
+    window.addEventListener('DOMContentLoaded', () => {
+      window.setTimeout(() => metronome.warmAllAudioFiles(), 0);
+    }, { once: true });
+  }
 
-render();
-attachEvents();
+  render();
+  attachEvents();
+}
