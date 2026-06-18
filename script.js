@@ -18,10 +18,12 @@ const defaultState = {
   bpm: 120,
   numBeats: 4,
   beatMask: [0, 2],
-  firstBeatState: 0,
   playState: 0,
   volume: 1,
 };
+
+const query = new URLSearchParams(window.location.search);
+const embeddedMode = query.get('embed') === '1';
 
 const state = {
   ...loadState(),
@@ -45,6 +47,9 @@ const state = {
   togglePlayBusy: false,
   suppressNextTempoStageToggle: false,
 };
+
+document.documentElement.classList.toggle('embedded-mode', embeddedMode);
+document.body.classList.toggle('embedded-mode', embeddedMode);
 
 const els = {
   mobileUnsupported: document.getElementById('mobileUnsupported'),
@@ -203,11 +208,7 @@ class WebMetronome {
   }
 
   scheduleBeatMobile(index, time) {
-    const firstBeatMuted = index === 0 && state.firstBeatState === 0 && state.beatMask.includes(0);
-    const normalMuted = index !== 0 && state.beatMask.includes(index);
-    const mutedByMode = index === 0 && state.firstBeatState === 1;
-    const shouldPlay = !(firstBeatMuted || normalMuted || mutedByMode);
-    const isAccent = index === 0 && state.firstBeatState === 2;
+    const shouldPlay = !state.beatMask.includes(index);
     const delayMs = Math.max(0, (time - this.audioCtx.currentTime) * 1000);
     const visualLeadMs = 10;
 
@@ -217,7 +218,7 @@ class WebMetronome {
     this.mobileVisualTimeouts.push(visualId);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.clickMobilePrecise(time, isAccent);
+      this.clickMobilePrecise(time, false);
     }
   }
 
@@ -275,11 +276,7 @@ class WebMetronome {
   }
 
   scheduleBeat(index, time) {
-    const firstBeatMuted = index === 0 && state.firstBeatState === 0 && state.beatMask.includes(0);
-    const normalMuted = index !== 0 && state.beatMask.includes(index);
-    const mutedByMode = index === 0 && state.firstBeatState === 1;
-    const shouldPlay = !(firstBeatMuted || normalMuted || mutedByMode);
-    const isAccent = index === 0 && state.firstBeatState === 2;
+    const shouldPlay = !state.beatMask.includes(index);
     const delayMs = Math.max(0, (time - this.audioCtx.currentTime) * 1000);
 
     setTimeout(() => {
@@ -287,7 +284,7 @@ class WebMetronome {
     }, delayMs);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.click(time, isAccent);
+      this.click(time, false);
     }
   }
 
@@ -366,7 +363,6 @@ function loadState() {
       bpm: clamp(parsed.bpm ?? defaultState.bpm, BPM_MIN, BPM_MAX),
       numBeats: clamp(parsed.numBeats ?? defaultState.numBeats, BEATS_MIN, BEATS_MAX),
       beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter((n) => Number.isInteger(n)) : defaultState.beatMask,
-      firstBeatState: [0, 1, 2].includes(parsed.firstBeatState) ? parsed.firstBeatState : 0,
       playState: Number.isInteger(parsed.playState) ? clamp(parsed.playState, 0, metSoundList.length - 1) : 0,
       volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(2, parsed.volume)) : defaultState.volume,
     };
@@ -382,7 +378,6 @@ function saveState() {
       bpm: state.bpm,
       numBeats: state.numBeats,
       beatMask: [...state.beatMask].sort((a, b) => a - b),
-      firstBeatState: state.firstBeatState,
       playState: state.playState,
       volume: state.volume,
     })
@@ -424,17 +419,8 @@ function renderBeats() {
     btn.className = 'beat-btn';
     btn.dataset.index = String(i);
 
-    if (i === 0) {
-      if (state.firstBeatState === 2) {
-        btn.textContent = '◼️';
-      } else if (state.firstBeatState === 1) {
-        btn.textContent = '◽️';
-      } else {
-        btn.textContent = state.beatMask.includes(0) ? '◽️' : '◾️';
-      }
-    } else {
-      btn.textContent = state.beatMask.includes(i) ? '◽️' : '◾️';
-    }
+    btn.textContent = state.beatMask.includes(i) ? '◽️' : '◾️';
+
 
     btn.addEventListener('click', () => onBeatTap(i));
 
@@ -447,24 +433,7 @@ function renderBeats() {
 }
 
 function onBeatTap(index) {
-  if (index === 0) {
-    cycleFirstBeatTap();
-    return;
-  }
   toggleBeatMask(index);
-}
-
-function cycleFirstBeatTap() {
-  if (state.firstBeatState === 0) {
-    state.firstBeatState = 2;
-  } else if (state.firstBeatState === 2) {
-    state.firstBeatState = 1;
-  } else {
-    state.firstBeatState = 0;
-  }
-  saveState();
-  render();
-  metronome.restartIfPlaying();
 }
 
 function toggleBeatMask(index) {
@@ -535,7 +504,6 @@ function resetPrefs() {
   state.numBeats = 4;
   state.beatMask = [0, 2];
   state.playState = 0;
-  state.firstBeatState = 0;
   saveState();
   render();
   metronome.restartIfPlaying();
