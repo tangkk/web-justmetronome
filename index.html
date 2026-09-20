@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>JustMetronome for Web - Free Online Metronome with Timer</title>
+    <title>120 BPM - 4 - Metronome</title>
     <meta
       name="description"
       content="JustMetronome for Web is a free online metronome for desktop practice, with tap tempo, beat mute control, multiple click sounds, adjustable BPM, and a built-in focus timer."
@@ -149,6 +149,21 @@
 
     <script type="module" src="./script.js"></script>
     <script>
+      // Keep the tab title in sync with the BPM and total number of sequence cells.
+      // Observing the rendered controls covers initial saved-state loading, dragging,
+      // tap tempo, beat count changes and preference reset without touching audio timing.
+      const tempoField = document.getElementById('tempoField');
+      const beatRows = [document.getElementById('beatStack'), document.getElementById('beatOptStack')];
+      const updateTabTitle = () => {
+        const bpm = tempoField.textContent.trim();
+        const cells = beatRows.reduce((sum, row) => sum + row.children.length, 0);
+        if (bpm && cells > 0) document.title = `${bpm} BPM - ${cells} - Metronome`;
+      };
+      const titleObserver = new MutationObserver(updateTabTitle);
+      titleObserver.observe(tempoField, { childList: true, characterData: true, subtree: true });
+      beatRows.forEach(row => titleObserver.observe(row, { childList: true }));
+      updateTabTitle();
+
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('./sw.js').catch(() => {});
