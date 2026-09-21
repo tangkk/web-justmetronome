@@ -3,7 +3,7 @@ const BPM_MIN = 10;
 const BPM_MAX = 360;
 const BEATS_MIN = 1;
 const BEATS_MAX = 32;
-const BPM_PRESET_MAX = 5;
+const BPM_PRESET_MAX = 6;
 const defaultBpmPresets = [60, 80, 100, 120];
 
 const metSoundList = [
@@ -947,7 +947,7 @@ function attachEvents() {
       adjustBeats(1);
     } else if (e.key.toLowerCase() === 't') {
       doTapTempo();
-    } else if (/^[1-5]$/.test(e.key)) {
+    } else if (/^[1-6]$/.test(e.key)) {
       const presetIndex = Number(e.key) - 1;
       const preset = state.bpmPresets[presetIndex];
       if (preset !== undefined) setBpm(preset, presetIndex);

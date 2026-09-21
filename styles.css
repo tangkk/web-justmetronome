@@ -347,7 +347,7 @@ body.embedded-mode .tempo-field {
 }
 
 .bpm-preset-btn {
-  min-width: 42px;
+  min-width: 38px;
   height: 27px;
   padding: 0 7px;
   border: 1.5px solid #000;
