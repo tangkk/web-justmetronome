@@ -937,6 +937,13 @@ function attachEvents() {
     if (e.code === 'Space') {
       e.preventDefault();
       togglePlay();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      if (!state.bpmPresets.length) return;
+      e.preventDefault();
+      const direction = e.key === 'ArrowRight' ? 1 : -1;
+      const currentIndex = state.activePresetIndex >= 0 ? state.activePresetIndex : 0;
+      const presetIndex = (currentIndex + direction + state.bpmPresets.length) % state.bpmPresets.length;
+      setBpm(state.bpmPresets[presetIndex], presetIndex);
     } else if (e.key === 'ArrowUp') {
       setBpm(state.bpm + 1);
     } else if (e.key === 'ArrowDown') {
