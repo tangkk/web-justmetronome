@@ -1,4 +1,4 @@
-const CACHE_NAME = 'just-metronome-cache-v3';
+const CACHE_NAME = 'just-metronome-cache-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,9 @@ const ASSETS = [
   './styles.css',
   './script.js',
   './site.webmanifest',
+  './favicon.svg?v=20260921',
+  './favicon.ico?v=20260921',
+  './apple-touch-icon.png?v=20260921',
   './assets/just-click.wav',
   './assets/hollow-click.wav',
   './assets/drum-stick.wav',
@@ -22,7 +25,10 @@ const ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -36,6 +42,23 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  // Pages go network-first (revalidated, ignoring the 10-minute HTTP cache) so an
+  // updated index.html is never hidden behind either cache.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-cache' })
+        .then((response) => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
