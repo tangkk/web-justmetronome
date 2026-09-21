@@ -22,7 +22,8 @@ const defaultState = {
   beatMask: [0, 2],
   playState: 0,
   volume: 1,
-  bpmPresets: defaultBpmPresets,
+  bpmPresets: [...defaultBpmPresets],
+  activePresetIndex: 3,
 };
 
 const query = new URLSearchParams(window.location.search);
@@ -359,7 +360,7 @@ const metronome = new WebMetronome();
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...defaultState };
+    if (!raw) return { ...defaultState, bpmPresets: [...defaultState.bpmPresets] };
     const parsed = JSON.parse(raw);
     return {
       ...defaultState,
@@ -370,9 +371,10 @@ function loadState() {
       playState: Number.isInteger(parsed.playState) ? clamp(parsed.playState, 0, metSoundList.length - 1) : 0,
       volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(2, parsed.volume)) : defaultState.volume,
       bpmPresets: normalizeBpmPresets(parsed.bpmPresets),
+      activePresetIndex: normalizeActivePresetIndex(parsed.activePresetIndex, parsed.bpmPresets, parsed.bpm),
     };
   } catch {
-    return { ...defaultState };
+    return { ...defaultState, bpmPresets: [...defaultState.bpmPresets] };
   }
 }
 
@@ -386,6 +388,7 @@ function saveState() {
       playState: state.playState,
       volume: state.volume,
       bpmPresets: state.bpmPresets,
+      activePresetIndex: state.activePresetIndex,
     })
   );
 }
@@ -400,10 +403,17 @@ function normalizeBpmPresets(presets) {
   for (const value of presets) {
     if (!Number.isFinite(value)) continue;
     const bpm = clamp(value, BPM_MIN, BPM_MAX);
-    if (!normalized.includes(bpm)) normalized.push(bpm);
+    normalized.push(bpm);
     if (normalized.length === BPM_PRESET_MAX) break;
   }
   return normalized;
+}
+
+function normalizeActivePresetIndex(index, presets, bpm) {
+  const normalizedPresets = normalizeBpmPresets(presets);
+  if (Number.isInteger(index) && index >= 0 && index < normalizedPresets.length) return index;
+  const presetIndex = normalizedPresets.findIndex((value) => value === clamp(bpm ?? defaultState.bpm, BPM_MIN, BPM_MAX));
+  return presetIndex;
 }
 
 function render() {
@@ -424,17 +434,13 @@ function renderBpmPresets() {
     btn.className = 'bpm-preset-btn';
     btn.textContent = String(bpm);
     btn.dataset.index = String(index);
-    btn.classList.toggle('is-active', bpm === state.bpm);
-    btn.setAttribute('aria-label', `${bpm} BPM preset. Double-click or right-click to edit.`);
-    btn.title = 'Click to switch BPM · Double-click or right-click to edit';
-    btn.addEventListener('click', () => setBpm(bpm));
+    btn.classList.toggle('is-active', index === state.activePresetIndex);
+    btn.setAttribute('aria-label', `${bpm} BPM preset. Double-click to delete.`);
+    btn.title = 'Click to select · Double-click to delete';
+    btn.addEventListener('click', () => setBpm(bpm, index));
     btn.addEventListener('dblclick', (event) => {
       event.preventDefault();
-      editBpmPreset(index);
-    });
-    btn.addEventListener('contextmenu', (event) => {
-      event.preventDefault();
-      editBpmPreset(index);
+      deleteBpmPreset(index);
     });
     els.bpmPresetRow.appendChild(btn);
   });
@@ -444,49 +450,29 @@ function renderBpmPresets() {
     addBtn.className = 'bpm-preset-btn add-preset';
     addBtn.textContent = '+';
     addBtn.setAttribute('aria-label', 'Add BPM preset');
-    addBtn.title = 'Add BPM preset';
+    addBtn.title = 'Copy the last BPM preset';
     addBtn.addEventListener('click', addBpmPreset);
     els.bpmPresetRow.appendChild(addBtn);
   }
 }
 
-function readPresetBpm(message, initialValue) {
-  const answer = window.prompt(message, initialValue);
-  if (answer === null) return null;
-  const value = answer.trim();
-  if (value === '') return '';
-  const bpm = Number(value);
-  if (!Number.isFinite(bpm) || bpm < BPM_MIN || bpm > BPM_MAX) {
-    window.alert(`Please enter a BPM from ${BPM_MIN} to ${BPM_MAX}.`);
-    return null;
-  }
-  return clamp(bpm, BPM_MIN, BPM_MAX);
-}
-
 function addBpmPreset() {
-  const bpm = readPresetBpm(`Add a BPM preset (${BPM_MIN}–${BPM_MAX})`, String(state.bpm));
-  if (bpm === null || bpm === '') return;
-  if (state.bpmPresets.includes(bpm)) {
-    window.alert('That BPM is already saved.');
-    return;
-  }
+  if (state.bpmPresets.length >= BPM_PRESET_MAX) return;
+  const bpm = state.bpmPresets.at(-1) ?? state.bpm;
   state.bpmPresets.push(bpm);
+  state.activePresetIndex = state.bpmPresets.length - 1;
+  state.bpm = bpm;
   saveState();
   renderBpmPresets();
 }
 
-function editBpmPreset(index) {
-  const current = state.bpmPresets[index];
-  if (current === undefined) return;
-  const bpm = readPresetBpm(`Edit BPM preset (${BPM_MIN}–${BPM_MAX}). Leave blank to delete.`, String(current));
-  if (bpm === null) return;
-  if (bpm === '') {
-    state.bpmPresets.splice(index, 1);
-  } else if (state.bpmPresets.some((value, presetIndex) => presetIndex !== index && value === bpm)) {
-    window.alert('That BPM is already saved.');
-    return;
-  } else {
-    state.bpmPresets[index] = bpm;
+function deleteBpmPreset(index) {
+  if (index < 0 || index >= state.bpmPresets.length) return;
+  state.bpmPresets.splice(index, 1);
+  if (state.activePresetIndex === index) {
+    state.activePresetIndex = -1;
+  } else if (state.activePresetIndex > index) {
+    state.activePresetIndex -= 1;
   }
   saveState();
   renderBpmPresets();
@@ -541,14 +527,16 @@ function toggleBeatMask(index) {
   metronome.restartIfPlaying();
 }
 
-function setBpm(next) {
+function setBpm(next, presetIndex = state.activePresetIndex) {
   const bpm = clamp(next, BPM_MIN, BPM_MAX);
-  if (bpm === state.bpm) return;
+  const bpmChanged = bpm !== state.bpm;
   state.bpm = bpm;
+  state.activePresetIndex = Number.isInteger(presetIndex) && presetIndex >= 0 && presetIndex < state.bpmPresets.length ? presetIndex : -1;
+  if (state.activePresetIndex >= 0) state.bpmPresets[state.activePresetIndex] = bpm;
   els.tempoField.textContent = String(state.bpm);
   renderBpmPresets();
   saveState();
-  metronome.restartIfPlaying();
+  if (bpmChanged) metronome.restartIfPlaying();
 }
 
 function adjustBeats(delta) {
@@ -960,8 +948,9 @@ function attachEvents() {
     } else if (e.key.toLowerCase() === 't') {
       doTapTempo();
     } else if (/^[1-5]$/.test(e.key)) {
-      const preset = state.bpmPresets[Number(e.key) - 1];
-      if (preset !== undefined) setBpm(preset);
+      const presetIndex = Number(e.key) - 1;
+      const preset = state.bpmPresets[presetIndex];
+      if (preset !== undefined) setBpm(preset, presetIndex);
     }
   });
 }
