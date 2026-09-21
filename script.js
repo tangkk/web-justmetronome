@@ -3,6 +3,8 @@ const BPM_MIN = 10;
 const BPM_MAX = 360;
 const BEATS_MIN = 1;
 const BEATS_MAX = 32;
+const BPM_PRESET_MAX = 5;
+const defaultBpmPresets = [60, 80, 100, 120];
 
 const metSoundList = [
   { key: 'just-click', label: 'Just Click', file: 'assets/just-click.wav' },
@@ -20,6 +22,7 @@ const defaultState = {
   beatMask: [0, 2],
   playState: 0,
   volume: 1,
+  bpmPresets: defaultBpmPresets,
 };
 
 const query = new URLSearchParams(window.location.search);
@@ -61,6 +64,7 @@ const els = {
   prefsResetBtn: document.getElementById('prefsResetBtn'),
   tempoButton: document.getElementById('tempoButton'),
   tempoField: document.getElementById('tempoField'),
+  bpmPresetRow: document.getElementById('bpmPresetRow'),
   ringProgress: document.getElementById('ringProgress'),
   beatsMinusBtn: document.getElementById('beatsMinusBtn'),
   beatsPlusBtn: document.getElementById('beatsPlusBtn'),
@@ -365,6 +369,7 @@ function loadState() {
       beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter((n) => Number.isInteger(n)) : defaultState.beatMask,
       playState: Number.isInteger(parsed.playState) ? clamp(parsed.playState, 0, metSoundList.length - 1) : 0,
       volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(2, parsed.volume)) : defaultState.volume,
+      bpmPresets: normalizeBpmPresets(parsed.bpmPresets),
     };
   } catch {
     return { ...defaultState };
@@ -380,6 +385,7 @@ function saveState() {
       beatMask: [...state.beatMask].sort((a, b) => a - b),
       playState: state.playState,
       volume: state.volume,
+      bpmPresets: state.bpmPresets,
     })
   );
 }
@@ -388,14 +394,102 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, Math.round(n)));
 }
 
+function normalizeBpmPresets(presets) {
+  if (!Array.isArray(presets)) return [...defaultBpmPresets];
+  const normalized = [];
+  for (const value of presets) {
+    if (!Number.isFinite(value)) continue;
+    const bpm = clamp(value, BPM_MIN, BPM_MAX);
+    if (!normalized.includes(bpm)) normalized.push(bpm);
+    if (normalized.length === BPM_PRESET_MAX) break;
+  }
+  return normalized;
+}
+
 function render() {
   els.tempoField.textContent = String(state.bpm);
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
   els.volumeSlider.value = String(state.volume);
   els.playHint.textContent = '';
   els.app.classList.toggle('is-playing', state.isPlaying);
+  renderBpmPresets();
   renderFocusTimer();
   renderBeats();
+}
+
+function renderBpmPresets() {
+  els.bpmPresetRow.innerHTML = '';
+  state.bpmPresets.forEach((bpm, index) => {
+    const btn = document.createElement('button');
+    btn.className = 'bpm-preset-btn';
+    btn.textContent = String(bpm);
+    btn.dataset.index = String(index);
+    btn.classList.toggle('is-active', bpm === state.bpm);
+    btn.setAttribute('aria-label', `${bpm} BPM preset. Double-click or right-click to edit.`);
+    btn.title = 'Click to switch BPM · Double-click or right-click to edit';
+    btn.addEventListener('click', () => setBpm(bpm));
+    btn.addEventListener('dblclick', (event) => {
+      event.preventDefault();
+      editBpmPreset(index);
+    });
+    btn.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      editBpmPreset(index);
+    });
+    els.bpmPresetRow.appendChild(btn);
+  });
+
+  if (state.bpmPresets.length < BPM_PRESET_MAX) {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'bpm-preset-btn add-preset';
+    addBtn.textContent = '+';
+    addBtn.setAttribute('aria-label', 'Add BPM preset');
+    addBtn.title = 'Add BPM preset';
+    addBtn.addEventListener('click', addBpmPreset);
+    els.bpmPresetRow.appendChild(addBtn);
+  }
+}
+
+function readPresetBpm(message, initialValue) {
+  const answer = window.prompt(message, initialValue);
+  if (answer === null) return null;
+  const value = answer.trim();
+  if (value === '') return '';
+  const bpm = Number(value);
+  if (!Number.isFinite(bpm) || bpm < BPM_MIN || bpm > BPM_MAX) {
+    window.alert(`Please enter a BPM from ${BPM_MIN} to ${BPM_MAX}.`);
+    return null;
+  }
+  return clamp(bpm, BPM_MIN, BPM_MAX);
+}
+
+function addBpmPreset() {
+  const bpm = readPresetBpm(`Add a BPM preset (${BPM_MIN}–${BPM_MAX})`, String(state.bpm));
+  if (bpm === null || bpm === '') return;
+  if (state.bpmPresets.includes(bpm)) {
+    window.alert('That BPM is already saved.');
+    return;
+  }
+  state.bpmPresets.push(bpm);
+  saveState();
+  renderBpmPresets();
+}
+
+function editBpmPreset(index) {
+  const current = state.bpmPresets[index];
+  if (current === undefined) return;
+  const bpm = readPresetBpm(`Edit BPM preset (${BPM_MIN}–${BPM_MAX}). Leave blank to delete.`, String(current));
+  if (bpm === null) return;
+  if (bpm === '') {
+    state.bpmPresets.splice(index, 1);
+  } else if (state.bpmPresets.some((value, presetIndex) => presetIndex !== index && value === bpm)) {
+    window.alert('That BPM is already saved.');
+    return;
+  } else {
+    state.bpmPresets[index] = bpm;
+  }
+  saveState();
+  renderBpmPresets();
 }
 
 function renderFocusTimer() {
@@ -452,6 +546,7 @@ function setBpm(next) {
   if (bpm === state.bpm) return;
   state.bpm = bpm;
   els.tempoField.textContent = String(state.bpm);
+  renderBpmPresets();
   saveState();
   metronome.restartIfPlaying();
 }
@@ -864,6 +959,9 @@ function attachEvents() {
       adjustBeats(1);
     } else if (e.key.toLowerCase() === 't') {
       doTapTempo();
+    } else if (/^[1-5]$/.test(e.key)) {
+      const preset = state.bpmPresets[Number(e.key) - 1];
+      if (preset !== undefined) setBpm(preset);
     }
   });
 }
