@@ -507,8 +507,9 @@ function createBpmPresetInsertButton(index) {
 
 function addBpmPreset(index = state.bpmPresets.length) {
   if (state.bpmPresets.length >= BPM_PRESET_MAX) return;
-  const bpm = state.bpmPresets.at(-1) ?? state.bpm;
   const insertIndex = Math.max(0, Math.min(index, state.bpmPresets.length));
+  const sourceIndex = insertIndex === 0 ? 0 : insertIndex - 1;
+  const bpm = state.bpmPresets[sourceIndex] ?? state.bpm;
   state.bpmPresets.splice(insertIndex, 0, bpm);
   setBpm(bpm, insertIndex);
 }
