@@ -462,41 +462,55 @@ function render() {
 
 function renderBpmPresets() {
   els.bpmPresetRow.innerHTML = '';
-  state.bpmPresets.forEach((bpm, index) => {
-    const btn = document.createElement('button');
-    btn.className = 'bpm-preset-btn';
-    btn.textContent = String(bpm);
-    btn.dataset.index = String(index);
-    btn.classList.toggle('is-active', index === state.activePresetIndex);
-    btn.setAttribute('aria-label', `${bpm} BPM preset. Double-click to delete.`);
-    btn.title = 'Click to select · Double-click to delete';
-    btn.addEventListener('click', () => setBpm(bpm, index));
-    btn.addEventListener('dblclick', (event) => {
-      event.preventDefault();
-      deleteBpmPreset(index);
-    });
-    els.bpmPresetRow.appendChild(btn);
-  });
+  const rows = Math.max(1, Math.ceil(state.bpmPresets.length / 6));
+  for (let row = 0; row < rows; row += 1) {
+    const start = row * 6;
+    const end = Math.min(start + 6, state.bpmPresets.length);
+    const line = document.createElement('div');
+    line.className = 'bpm-preset-line';
 
-  if (state.bpmPresets.length < BPM_PRESET_MAX) {
-    const addBtn = document.createElement('button');
-    addBtn.className = 'bpm-preset-btn add-preset';
-    addBtn.textContent = '+';
-    addBtn.setAttribute('aria-label', 'Add BPM preset');
-    addBtn.title = 'Copy the last BPM preset';
-    addBtn.addEventListener('click', addBpmPreset);
-    els.bpmPresetRow.appendChild(addBtn);
+    for (let index = start; index <= end; index += 1) {
+      line.appendChild(createBpmPresetInsertButton(index));
+      if (index < end) line.appendChild(createBpmPresetButton(state.bpmPresets[index], index));
+    }
+    els.bpmPresetRow.appendChild(line);
   }
 }
 
-function addBpmPreset() {
+function createBpmPresetButton(bpm, index) {
+  const btn = document.createElement('button');
+  btn.className = 'bpm-preset-btn';
+  btn.textContent = String(bpm);
+  btn.dataset.index = String(index);
+  btn.classList.toggle('is-active', index === state.activePresetIndex);
+  btn.setAttribute('aria-label', `${bpm} BPM preset. Double-click to delete.`);
+  btn.title = 'Click to select · Double-click to delete';
+  btn.addEventListener('click', () => setBpm(bpm, index));
+  btn.addEventListener('dblclick', (event) => {
+    event.preventDefault();
+    deleteBpmPreset(index);
+  });
+  return btn;
+}
+
+function createBpmPresetInsertButton(index) {
+  const btn = document.createElement('button');
+  btn.className = 'bpm-preset-insert-btn';
+  btn.textContent = '+';
+  const isFull = state.bpmPresets.length >= BPM_PRESET_MAX;
+  btn.disabled = isFull;
+  btn.setAttribute('aria-label', isFull ? 'BPM preset limit reached' : `Copy the last BPM preset and insert it before position ${index + 1}`);
+  btn.title = isFull ? 'Maximum 12 BPM presets' : 'Copy the last BPM preset here';
+  btn.addEventListener('click', () => addBpmPreset(index));
+  return btn;
+}
+
+function addBpmPreset(index = state.bpmPresets.length) {
   if (state.bpmPresets.length >= BPM_PRESET_MAX) return;
   const bpm = state.bpmPresets.at(-1) ?? state.bpm;
-  state.bpmPresets.push(bpm);
-  state.activePresetIndex = state.bpmPresets.length - 1;
-  state.bpm = bpm;
-  saveState();
-  renderBpmPresets();
+  const insertIndex = Math.max(0, Math.min(index, state.bpmPresets.length));
+  state.bpmPresets.splice(insertIndex, 0, bpm);
+  setBpm(bpm, insertIndex);
 }
 
 function deleteBpmPreset(index) {
