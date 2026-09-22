@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'just-metronome-web-v2';
+const BPM_PRESETS_STORAGE_KEY = 'just-metronome-web-bpm-presets-v1';
 const BPM_MIN = 10;
 const BPM_MAX = 360;
 const BEATS_MIN = 1;
@@ -360,7 +361,14 @@ const metronome = new WebMetronome();
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...defaultState, bpmPresets: [...defaultState.bpmPresets] };
+    const savedBpmPresets = loadBpmPresetState();
+    if (!raw) {
+      return {
+        ...defaultState,
+        bpmPresets: savedBpmPresets?.bpmPresets ?? [...defaultState.bpmPresets],
+        activePresetIndex: savedBpmPresets?.activePresetIndex ?? defaultState.activePresetIndex,
+      };
+    }
     const parsed = JSON.parse(raw);
     return {
       ...defaultState,
@@ -370,27 +378,52 @@ function loadState() {
       beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter((n) => Number.isInteger(n)) : defaultState.beatMask,
       playState: Number.isInteger(parsed.playState) ? clamp(parsed.playState, 0, metSoundList.length - 1) : 0,
       volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(2, parsed.volume)) : defaultState.volume,
-      bpmPresets: normalizeBpmPresets(parsed.bpmPresets),
-      activePresetIndex: normalizeActivePresetIndex(parsed.activePresetIndex, parsed.bpmPresets, parsed.bpm),
+      bpmPresets: savedBpmPresets?.bpmPresets ?? normalizeBpmPresets(parsed.bpmPresets),
+      activePresetIndex: savedBpmPresets?.activePresetIndex ?? normalizeActivePresetIndex(parsed.activePresetIndex, parsed.bpmPresets, parsed.bpm),
     };
   } catch {
     return { ...defaultState, bpmPresets: [...defaultState.bpmPresets] };
   }
 }
 
+function loadBpmPresetState() {
+  try {
+    const raw = localStorage.getItem(BPM_PRESETS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const bpmPresets = normalizeBpmPresets(parsed.bpmPresets);
+    return {
+      bpmPresets,
+      activePresetIndex: normalizeActivePresetIndex(parsed.activePresetIndex, bpmPresets, parsed.bpm),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function saveState() {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      bpm: state.bpm,
-      numBeats: state.numBeats,
-      beatMask: [...state.beatMask].sort((a, b) => a - b),
-      playState: state.playState,
-      volume: state.volume,
-      bpmPresets: state.bpmPresets,
-      activePresetIndex: state.activePresetIndex,
-    })
-  );
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        bpm: state.bpm,
+        numBeats: state.numBeats,
+        beatMask: [...state.beatMask].sort((a, b) => a - b),
+        playState: state.playState,
+        volume: state.volume,
+        bpmPresets: state.bpmPresets,
+        activePresetIndex: state.activePresetIndex,
+      })
+    );
+    localStorage.setItem(
+      BPM_PRESETS_STORAGE_KEY,
+      JSON.stringify({
+        bpm: state.bpm,
+        bpmPresets: state.bpmPresets,
+        activePresetIndex: state.activePresetIndex,
+      })
+    );
+  } catch {}
 }
 
 function clamp(n, min, max) {
