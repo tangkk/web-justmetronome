@@ -4,7 +4,7 @@ const BPM_MIN = 10;
 const BPM_MAX = 360;
 const BEATS_MIN = 1;
 const BEATS_MAX = 32;
-const BPM_PRESET_MAX = 6;
+const BPM_PRESET_MAX = 12;
 const defaultBpmPresets = [60, 80, 100, 120];
 
 const metSoundList = [
