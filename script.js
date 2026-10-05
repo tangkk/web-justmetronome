@@ -6,6 +6,7 @@ const BEATS_MIN = 1;
 const BEATS_MAX = 32;
 const BPM_PRESET_MAX = 12;
 const defaultBpmPresets = [60, 80, 100, 120];
+const ACCENT_SOUND_FILE = 'assets/ding.mp3';
 
 const metSoundList = [
   { key: 'just-click', label: 'Just Click', file: 'assets/just-click.wav' },
@@ -25,6 +26,7 @@ const defaultState = {
   volume: 1,
   bpmPresets: [...defaultBpmPresets],
   activePresetIndex: 3,
+  accentEnabled: false,
 };
 
 const query = new URLSearchParams(window.location.search);
@@ -63,6 +65,7 @@ const els = {
   focusTimerDisplay: document.getElementById('focusTimerDisplay'),
   playStateBtn: document.getElementById('playStateBtn'),
   tapTempoBtn: document.getElementById('tapTempoBtn'),
+  accentBtn: document.getElementById('accentBtn'),
   prefsResetBtn: document.getElementById('prefsResetBtn'),
   tempoButton: document.getElementById('tempoButton'),
   tempoField: document.getElementById('tempoField'),
@@ -99,20 +102,28 @@ class WebMetronome {
     if (this.audioCtx.state === 'suspended') {
       await this.audioCtx.resume();
     }
-    await this.preloadCurrentBuffer();
+    await Promise.all([this.preloadCurrentBuffer(), this.preloadAccentBuffer()]);
   }
 
   async preloadCurrentBuffer() {
     const sound = metSoundList[state.playState];
     if (!sound || !sound.file) return;
 
-    this.ensureHtmlAudio(sound.file);
+    await this.preloadBuffer(sound.file);
+  }
 
-    if (this.buffers.has(sound.file)) return;
-    const res = await fetch(sound.file);
+  async preloadAccentBuffer() {
+    if (!state.accentEnabled) return;
+    await this.preloadBuffer(ACCENT_SOUND_FILE);
+  }
+
+  async preloadBuffer(file) {
+    this.ensureHtmlAudio(file);
+    if (this.buffers.has(file)) return;
+    const res = await fetch(file);
     const arr = await res.arrayBuffer();
     const buffer = await this.audioCtx.decodeAudioData(arr.slice(0));
-    this.buffers.set(sound.file, buffer);
+    this.buffers.set(file, buffer);
   }
 
   ensureHtmlAudio(file) {
@@ -159,6 +170,7 @@ class WebMetronome {
       if (!sound.file) continue;
       this.warmAudioFile(sound.file);
     }
+    this.warmAudioFile(ACCENT_SOUND_FILE);
   }
 
   async start() {
@@ -224,7 +236,11 @@ class WebMetronome {
     this.mobileVisualTimeouts.push(visualId);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.clickMobilePrecise(time, false);
+      if (index === 0 && state.accentEnabled) {
+        this.clickAccentMobile(time);
+      } else {
+        this.clickMobilePrecise(time, false);
+      }
     }
   }
 
@@ -273,6 +289,14 @@ class WebMetronome {
     audio.play().catch(() => {});
   }
 
+  clickAccentMobile(time) {
+    const delayMs = Math.max(0, (time - (this.audioCtx?.currentTime ?? 0)) * 1000);
+    const fallbackId = window.setTimeout(() => {
+      this.playFromMobileAudioPool(ACCENT_SOUND_FILE, true);
+    }, delayMs);
+    this.mobileTickTimeouts.push(fallbackId);
+  }
+
   scheduler() {
     while (state.nextBeatTime < this.audioCtx.currentTime + this.scheduleAhead) {
       this.scheduleBeat(state.currentBeat, state.nextBeatTime);
@@ -290,7 +314,11 @@ class WebMetronome {
     }, delayMs);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.click(time, false);
+      if (index === 0 && state.accentEnabled) {
+        this.clickAccent(time);
+      } else {
+        this.click(time, false);
+      }
     }
   }
 
@@ -354,6 +382,21 @@ class WebMetronome {
     osc.start(time);
     osc.stop(time + Math.max(0.04, p.decay + 0.01));
   }
+
+  clickAccent(time) {
+    const buffer = this.buffers.get(ACCENT_SOUND_FILE);
+    if (buffer) {
+      const source = this.audioCtx.createBufferSource();
+      const gain = this.audioCtx.createGain();
+      source.buffer = buffer;
+      gain.gain.setValueAtTime(Math.min(1.8, 1.2 * state.volume), time);
+      source.connect(gain);
+      gain.connect(this.audioCtx.destination);
+      source.start(time);
+      return;
+    }
+    this.click(time, true);
+  }
 }
 
 const metronome = new WebMetronome();
@@ -378,6 +421,7 @@ function loadState() {
       beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter((n) => Number.isInteger(n)) : defaultState.beatMask,
       playState: Number.isInteger(parsed.playState) ? clamp(parsed.playState, 0, metSoundList.length - 1) : 0,
       volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(2, parsed.volume)) : defaultState.volume,
+      accentEnabled: typeof parsed.accentEnabled === 'boolean' ? parsed.accentEnabled : defaultState.accentEnabled,
       bpmPresets: savedBpmPresets?.bpmPresets ?? normalizeBpmPresets(parsed.bpmPresets),
       activePresetIndex: savedBpmPresets?.activePresetIndex ?? normalizeActivePresetIndex(parsed.activePresetIndex, parsed.bpmPresets, parsed.bpm),
     };
@@ -411,6 +455,7 @@ function saveState() {
         beatMask: [...state.beatMask].sort((a, b) => a - b),
         playState: state.playState,
         volume: state.volume,
+        accentEnabled: state.accentEnabled,
         bpmPresets: state.bpmPresets,
         activePresetIndex: state.activePresetIndex,
       })
@@ -452,6 +497,8 @@ function normalizeActivePresetIndex(index, presets, bpm) {
 function render() {
   els.tempoField.textContent = String(state.bpm);
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
+  els.accentBtn.classList.toggle('is-active', state.accentEnabled);
+  els.accentBtn.setAttribute('aria-pressed', String(state.accentEnabled));
   els.volumeSlider.value = String(state.volume);
   els.playHint.textContent = '';
   els.app.classList.toggle('is-playing', state.isPlaying);
@@ -630,11 +677,20 @@ function changeSound() {
   metronome.restartIfPlaying();
 }
 
+function toggleAccent() {
+  state.accentEnabled = !state.accentEnabled;
+  if (state.accentEnabled) metronome.warmAudioFile(ACCENT_SOUND_FILE);
+  saveState();
+  render();
+  metronome.restartIfPlaying();
+}
+
 function resetPrefs() {
   state.bpm = 120;
   state.numBeats = 4;
   state.beatMask = [0, 2];
   state.playState = 0;
+  state.accentEnabled = false;
   saveState();
   render();
   metronome.restartIfPlaying();
@@ -773,6 +829,7 @@ function attachEvents() {
 
   els.playStateBtn.addEventListener('click', changeSound);
   els.tapTempoBtn.addEventListener('click', doTapTempo);
+  els.accentBtn.addEventListener('click', toggleAccent);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
   let focusTimerDragMoved = false;
   let focusTimerLongPressTriggered = false;

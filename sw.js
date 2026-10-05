@@ -1,10 +1,10 @@
-const CACHE_NAME = 'just-metronome-cache-v8';
+const CACHE_NAME = 'just-metronome-cache-v9';
 const ASSETS = [
   './',
   './index.html',
   './404.html',
-  './styles.css?v=20260922-4',
-  './script.js?v=20260922-4',
+  './styles.css?v=20261005',
+  './script.js?v=20261005',
   './site.webmanifest',
   './favicon.svg?v=20260921',
   './favicon.ico?v=20260921',

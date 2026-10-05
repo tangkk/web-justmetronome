@@ -240,6 +240,16 @@ body.embedded-mode .prefs-row {
   font-size: 32px;
 }
 
+.accent-btn {
+  width: 42.35px;
+  height: 60.2px;
+  font-size: 29px;
+}
+
+.accent-btn.is-active {
+  color: #0a66ff;
+}
+
 .reset-btn {
   width: 42.35px;
   height: 60.2px;
