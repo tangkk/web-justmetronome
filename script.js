@@ -229,18 +229,19 @@ class WebMetronome {
     this.mobileVisualTimeouts.push(visualId);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.clickMobilePrecise(time, firstBeat && state.firstBeatState === 0);
+      this.clickMobilePrecise(time);
+      if (firstBeat && state.firstBeatState === 0) this.clickAccentAttack(time);
     }
   }
 
-  clickMobilePrecise(time, accent) {
+  clickMobilePrecise(time) {
     const ctx = this.audioCtx;
     const sound = metSoundList[state.playState];
 
     if (sound?.file) {
       const delayMs = Math.max(0, (time - (ctx?.currentTime ?? 0)) * 1000);
       const fallbackId = window.setTimeout(() => {
-        this.playFromMobileAudioPool(sound.file, accent);
+        this.playFromMobileAudioPool(sound.file);
       }, delayMs);
       this.mobileTickTimeouts.push(fallbackId);
       return;
@@ -252,7 +253,7 @@ class WebMetronome {
         const source = ctx.createBufferSource();
         const gain = ctx.createGain();
         source.buffer = buffer;
-        gain.gain.setValueAtTime(Math.min(1.8, (accent ? 1.35 : 1) * state.volume), time);
+        gain.gain.setValueAtTime(Math.min(1.8, state.volume), time);
         source.connect(gain);
         gain.connect(ctx.destination);
         source.start(time);
@@ -260,10 +261,10 @@ class WebMetronome {
       } catch {}
     }
 
-    this.click(time, accent);
+    this.click(time);
   }
 
-  playFromMobileAudioPool(file, accent) {
+  playFromMobileAudioPool(file) {
     this.ensureHtmlAudio(file);
     const pool = this.mobileAudioPools.get(file);
     if (!pool?.items?.length) return;
@@ -273,7 +274,7 @@ class WebMetronome {
       audio.pause();
       audio.currentTime = 0;
     } catch {}
-    audio.volume = Math.min(1, (accent ? 1.5 : 1) * state.volume);
+    audio.volume = Math.min(1, state.volume);
     audio.playsInline = true;
     audio.play().catch(() => {});
   }
@@ -296,11 +297,12 @@ class WebMetronome {
     }, delayMs);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.click(time, firstBeat && state.firstBeatState === 0);
+      this.click(time);
+      if (firstBeat && state.firstBeatState === 0) this.clickAccentAttack(time);
     }
   }
 
-  click(time, accent) {
+  click(time) {
     const ctx = this.audioCtx;
     const sound = metSoundList[state.playState];
     const buffer = sound?.file ? this.buffers.get(sound.file) : null;
@@ -310,7 +312,7 @@ class WebMetronome {
       const baseAudio = this.htmlAudio.get(sound.file);
       if (baseAudio) {
         const audio = baseAudio.cloneNode();
-        audio.volume = Math.min(1, (accent ? 1.6 : 1) * state.volume);
+        audio.volume = Math.min(1, state.volume);
         audio.playsInline = true;
         audio.currentTime = 0;
         audio.play().catch(() => {});
@@ -322,7 +324,7 @@ class WebMetronome {
       const source = ctx.createBufferSource();
       const gain = ctx.createGain();
       source.buffer = buffer;
-      gain.gain.setValueAtTime((accent ? 8 : 4) * state.volume, time);
+      gain.gain.setValueAtTime(4 * state.volume, time);
       source.connect(gain);
       gain.connect(ctx.destination);
       source.start(time);
@@ -349,7 +351,7 @@ class WebMetronome {
     filter.frequency.setValueAtTime(p.freq, time);
     filter.Q.setValueAtTime(p.q, time);
 
-    const peak = (accent ? 1.4 : 1) * state.volume * 0.22;
+    const peak = state.volume * 0.22;
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), time + 0.001);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + p.decay);
@@ -359,6 +361,29 @@ class WebMetronome {
     gain.connect(ctx.destination);
     osc.start(time);
     osc.stop(time + Math.max(0.04, p.decay + 0.01));
+  }
+
+  clickAccentAttack(time) {
+    const ctx = this.audioCtx;
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(2800, time);
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2800, time);
+    filter.Q.setValueAtTime(18, time);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, state.volume * 0.1), time + 0.001);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.012);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.014);
   }
 
 }
