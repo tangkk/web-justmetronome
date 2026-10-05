@@ -366,24 +366,30 @@ class WebMetronome {
   clickAccentAttack(time) {
     const ctx = this.audioCtx;
     if (!ctx) return;
-    const osc = ctx.createOscillator();
+    const duration = 0.016;
+    const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * duration), ctx.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let index = 0; index < samples.length; index += 1) {
+      const envelope = 1 - index / samples.length;
+      samples[index] = (Math.random() * 2 - 1) * envelope * envelope;
+    }
+    const source = ctx.createBufferSource();
     const filter = ctx.createBiquadFilter();
     const gain = ctx.createGain();
 
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(2800, time);
+    source.buffer = buffer;
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(2800, time);
-    filter.Q.setValueAtTime(18, time);
+    filter.frequency.setValueAtTime(2400, time);
+    filter.Q.setValueAtTime(6, time);
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, state.volume * 0.1), time + 0.001);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.012);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, state.volume * 0.55), time + 0.001);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
 
-    osc.connect(filter);
+    source.connect(filter);
     filter.connect(gain);
     gain.connect(ctx.destination);
-    osc.start(time);
-    osc.stop(time + 0.014);
+    source.start(time);
+    source.stop(time + duration);
   }
 
 }
