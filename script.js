@@ -229,19 +229,18 @@ class WebMetronome {
     this.mobileVisualTimeouts.push(visualId);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.clickMobilePrecise(time);
-      if (firstBeat && state.firstBeatState === 0) this.clickAccentAttack(time);
+      this.clickMobilePrecise(time, firstBeat && state.firstBeatState === 0 ? 1.5 : 1);
     }
   }
 
-  clickMobilePrecise(time) {
+  clickMobilePrecise(time, pitchMultiplier = 1) {
     const ctx = this.audioCtx;
     const sound = metSoundList[state.playState];
 
     if (sound?.file) {
       const delayMs = Math.max(0, (time - (ctx?.currentTime ?? 0)) * 1000);
       const fallbackId = window.setTimeout(() => {
-        this.playFromMobileAudioPool(sound.file);
+        this.playFromMobileAudioPool(sound.file, pitchMultiplier);
       }, delayMs);
       this.mobileTickTimeouts.push(fallbackId);
       return;
@@ -253,6 +252,7 @@ class WebMetronome {
         const source = ctx.createBufferSource();
         const gain = ctx.createGain();
         source.buffer = buffer;
+        source.playbackRate.setValueAtTime(pitchMultiplier, time);
         gain.gain.setValueAtTime(Math.min(1.8, state.volume), time);
         source.connect(gain);
         gain.connect(ctx.destination);
@@ -261,10 +261,10 @@ class WebMetronome {
       } catch {}
     }
 
-    this.click(time);
+    this.click(time, pitchMultiplier);
   }
 
-  playFromMobileAudioPool(file) {
+  playFromMobileAudioPool(file, pitchMultiplier = 1) {
     this.ensureHtmlAudio(file);
     const pool = this.mobileAudioPools.get(file);
     if (!pool?.items?.length) return;
@@ -274,6 +274,7 @@ class WebMetronome {
       audio.pause();
       audio.currentTime = 0;
     } catch {}
+    audio.playbackRate = pitchMultiplier;
     audio.volume = Math.min(1, state.volume);
     audio.playsInline = true;
     audio.play().catch(() => {});
@@ -297,12 +298,11 @@ class WebMetronome {
     }, delayMs);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.click(time);
-      if (firstBeat && state.firstBeatState === 0) this.clickAccentAttack(time);
+      this.click(time, firstBeat && state.firstBeatState === 0 ? 1.5 : 1);
     }
   }
 
-  click(time) {
+  click(time, pitchMultiplier = 1) {
     const ctx = this.audioCtx;
     const sound = metSoundList[state.playState];
     const buffer = sound?.file ? this.buffers.get(sound.file) : null;
@@ -315,6 +315,7 @@ class WebMetronome {
         audio.volume = Math.min(1, state.volume);
         audio.playsInline = true;
         audio.currentTime = 0;
+        audio.playbackRate = pitchMultiplier;
         audio.play().catch(() => {});
         return;
       }
@@ -324,6 +325,7 @@ class WebMetronome {
       const source = ctx.createBufferSource();
       const gain = ctx.createGain();
       source.buffer = buffer;
+      source.playbackRate.setValueAtTime(pitchMultiplier, time);
       gain.gain.setValueAtTime(4 * state.volume, time);
       source.connect(gain);
       gain.connect(ctx.destination);
@@ -346,9 +348,9 @@ class WebMetronome {
 
     const p = profiles[state.playState] || profiles[0];
     osc.type = p.type;
-    osc.frequency.setValueAtTime(p.freq, time);
+    osc.frequency.setValueAtTime(p.freq * pitchMultiplier, time);
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(p.freq, time);
+    filter.frequency.setValueAtTime(p.freq * pitchMultiplier, time);
     filter.Q.setValueAtTime(p.q, time);
 
     const peak = state.volume * 0.22;
@@ -361,35 +363,6 @@ class WebMetronome {
     gain.connect(ctx.destination);
     osc.start(time);
     osc.stop(time + Math.max(0.04, p.decay + 0.01));
-  }
-
-  clickAccentAttack(time) {
-    const ctx = this.audioCtx;
-    if (!ctx) return;
-    const duration = 0.016;
-    const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * duration), ctx.sampleRate);
-    const samples = buffer.getChannelData(0);
-    for (let index = 0; index < samples.length; index += 1) {
-      const envelope = 1 - index / samples.length;
-      samples[index] = (Math.random() * 2 - 1) * envelope * envelope;
-    }
-    const source = ctx.createBufferSource();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-
-    source.buffer = buffer;
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(2400, time);
-    filter.Q.setValueAtTime(6, time);
-    gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, state.volume * 0.55), time + 0.001);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-    source.start(time);
-    source.stop(time + duration);
   }
 
 }
