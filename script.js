@@ -25,7 +25,7 @@ const defaultState = {
   volume: 1,
   bpmPresets: [...defaultBpmPresets],
   activePresetIndex: 3,
-  firstBeatAccent: false,
+  firstBeatState: 0,
 };
 
 const query = new URLSearchParams(window.location.search);
@@ -218,7 +218,8 @@ class WebMetronome {
   }
 
   scheduleBeatMobile(index, time) {
-    const shouldPlay = !state.beatMask.includes(index);
+    const firstBeat = index === 0;
+    const shouldPlay = firstBeat ? state.firstBeatState === 0 || state.firstBeatState === 2 : !state.beatMask.includes(index);
     const delayMs = Math.max(0, (time - this.audioCtx.currentTime) * 1000);
     const visualLeadMs = 10;
 
@@ -228,7 +229,7 @@ class WebMetronome {
     this.mobileVisualTimeouts.push(visualId);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.clickMobilePrecise(time, index === 0 && state.firstBeatAccent);
+      this.clickMobilePrecise(time, firstBeat && state.firstBeatState === 0);
     }
   }
 
@@ -286,7 +287,8 @@ class WebMetronome {
   }
 
   scheduleBeat(index, time) {
-    const shouldPlay = !state.beatMask.includes(index);
+    const firstBeat = index === 0;
+    const shouldPlay = firstBeat ? state.firstBeatState === 0 || state.firstBeatState === 2 : !state.beatMask.includes(index);
     const delayMs = Math.max(0, (time - this.audioCtx.currentTime) * 1000);
 
     setTimeout(() => {
@@ -294,7 +296,7 @@ class WebMetronome {
     }, delayMs);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      this.click(time, index === 0 && state.firstBeatAccent);
+      this.click(time, firstBeat && state.firstBeatState === 0);
     }
   }
 
@@ -383,7 +385,7 @@ function loadState() {
       beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter((n) => Number.isInteger(n) && n !== 0) : defaultState.beatMask,
       playState: Number.isInteger(parsed.playState) ? clamp(parsed.playState, 0, metSoundList.length - 1) : 0,
       volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(2, parsed.volume)) : defaultState.volume,
-      firstBeatAccent: typeof parsed.firstBeatAccent === 'boolean' ? parsed.firstBeatAccent : defaultState.firstBeatAccent,
+      firstBeatState: [0, 1, 2, 3].includes(parsed.firstBeatState) ? parsed.firstBeatState : parsed.firstBeatAccent ? 0 : 2,
       bpmPresets: savedBpmPresets?.bpmPresets ?? normalizeBpmPresets(parsed.bpmPresets),
       activePresetIndex: savedBpmPresets?.activePresetIndex ?? normalizeActivePresetIndex(parsed.activePresetIndex, parsed.bpmPresets, parsed.bpm),
     };
@@ -417,7 +419,7 @@ function saveState() {
         beatMask: [...state.beatMask].sort((a, b) => a - b),
         playState: state.playState,
         volume: state.volume,
-        firstBeatAccent: state.firstBeatAccent,
+        firstBeatState: state.firstBeatState,
         bpmPresets: state.bpmPresets,
         activePresetIndex: state.activePresetIndex,
       })
@@ -555,10 +557,11 @@ function renderBeats() {
     btn.dataset.index = String(i);
 
     if (i === 0) {
-      btn.textContent = state.firstBeatAccent ? '◼️' : '◾️';
+      const firstBeatSymbols = ['◼️', '◽️', '◾️', '◽️'];
+      btn.textContent = firstBeatSymbols[state.firstBeatState];
       btn.classList.add('first-beat');
-      btn.classList.toggle('is-accent', state.firstBeatAccent);
-      btn.setAttribute('aria-label', state.firstBeatAccent ? 'First beat, accented' : 'First beat, normal volume');
+      const firstBeatLabels = ['First beat, accented', 'First beat, muted', 'First beat, normal volume', 'First beat, muted'];
+      btn.setAttribute('aria-label', firstBeatLabels[state.firstBeatState]);
     } else {
       btn.textContent = state.beatMask.includes(i) ? '◽️' : '◾️';
     }
@@ -576,7 +579,7 @@ function renderBeats() {
 
 function onBeatTap(index) {
   if (index === 0) {
-    state.firstBeatAccent = !state.firstBeatAccent;
+    state.firstBeatState = (state.firstBeatState + 1) % 4;
     saveState();
     render();
     metronome.restartIfPlaying();
@@ -656,7 +659,7 @@ function resetPrefs() {
   state.numBeats = 4;
   state.beatMask = [2];
   state.playState = 0;
-  state.firstBeatAccent = false;
+  state.firstBeatState = 0;
   saveState();
   render();
   metronome.restartIfPlaying();

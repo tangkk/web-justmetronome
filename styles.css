@@ -485,11 +485,6 @@ body.embedded-mode .stepper-row {
   border-radius: 999px;
 }
 
-.beat-btn.first-beat.is-accent {
-  font-size: 28px;
-  transform: translateY(1px);
-}
-
 .bottom-tools {
   margin-top: 14px;
   display: flex;
