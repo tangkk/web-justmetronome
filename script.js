@@ -6,7 +6,6 @@ const BEATS_MIN = 1;
 const BEATS_MAX = 32;
 const BPM_PRESET_MAX = 12;
 const defaultBpmPresets = [60, 80, 100, 120];
-const ACCENT_SOUND_FILE = 'assets/ding.mp3';
 
 const metSoundList = [
   { key: 'just-click', label: 'Just Click', file: 'assets/just-click.wav' },
@@ -21,12 +20,12 @@ const metSoundList = [
 const defaultState = {
   bpm: 120,
   numBeats: 4,
-  beatMask: [0, 2],
+  beatMask: [2],
   playState: 0,
   volume: 1,
   bpmPresets: [...defaultBpmPresets],
   activePresetIndex: 3,
-  accentEnabled: false,
+  firstBeatAccent: false,
 };
 
 const query = new URLSearchParams(window.location.search);
@@ -65,7 +64,6 @@ const els = {
   focusTimerDisplay: document.getElementById('focusTimerDisplay'),
   playStateBtn: document.getElementById('playStateBtn'),
   tapTempoBtn: document.getElementById('tapTempoBtn'),
-  accentBtn: document.getElementById('accentBtn'),
   prefsResetBtn: document.getElementById('prefsResetBtn'),
   tempoButton: document.getElementById('tempoButton'),
   tempoField: document.getElementById('tempoField'),
@@ -102,7 +100,7 @@ class WebMetronome {
     if (this.audioCtx.state === 'suspended') {
       await this.audioCtx.resume();
     }
-    await Promise.all([this.preloadCurrentBuffer(), this.preloadAccentBuffer()]);
+    await this.preloadCurrentBuffer();
   }
 
   async preloadCurrentBuffer() {
@@ -110,11 +108,6 @@ class WebMetronome {
     if (!sound || !sound.file) return;
 
     await this.preloadBuffer(sound.file);
-  }
-
-  async preloadAccentBuffer() {
-    if (!state.accentEnabled) return;
-    await this.preloadBuffer(ACCENT_SOUND_FILE);
   }
 
   async preloadBuffer(file) {
@@ -170,7 +163,6 @@ class WebMetronome {
       if (!sound.file) continue;
       this.warmAudioFile(sound.file);
     }
-    this.warmAudioFile(ACCENT_SOUND_FILE);
   }
 
   async start() {
@@ -236,11 +228,7 @@ class WebMetronome {
     this.mobileVisualTimeouts.push(visualId);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      if (index === 0 && state.accentEnabled) {
-        this.clickAccentMobile(time);
-      } else {
-        this.clickMobilePrecise(time, false);
-      }
+      this.clickMobilePrecise(time, index === 0 && state.firstBeatAccent);
     }
   }
 
@@ -289,14 +277,6 @@ class WebMetronome {
     audio.play().catch(() => {});
   }
 
-  clickAccentMobile(time) {
-    const delayMs = Math.max(0, (time - (this.audioCtx?.currentTime ?? 0)) * 1000);
-    const fallbackId = window.setTimeout(() => {
-      this.playFromMobileAudioPool(ACCENT_SOUND_FILE, true);
-    }, delayMs);
-    this.mobileTickTimeouts.push(fallbackId);
-  }
-
   scheduler() {
     while (state.nextBeatTime < this.audioCtx.currentTime + this.scheduleAhead) {
       this.scheduleBeat(state.currentBeat, state.nextBeatTime);
@@ -314,11 +294,7 @@ class WebMetronome {
     }, delayMs);
 
     if (shouldPlay && state.playState < metSoundList.length - 1) {
-      if (index === 0 && state.accentEnabled) {
-        this.clickAccent(time);
-      } else {
-        this.click(time, false);
-      }
+      this.click(time, index === 0 && state.firstBeatAccent);
     }
   }
 
@@ -356,12 +332,12 @@ class WebMetronome {
     const filter = ctx.createBiquadFilter();
 
     const profiles = {
-      0: { type: 'square', freq: accent ? 2200 : 1800, decay: 0.02, q: 8 },
-      1: { type: 'triangle', freq: accent ? 1600 : 1250, decay: 0.028, q: 4 },
-      2: { type: 'square', freq: accent ? 900 : 760, decay: 0.016, q: 14 },
-      3: { type: 'sawtooth', freq: accent ? 700 : 540, decay: 0.024, q: 7 },
-      4: { type: 'square', freq: accent ? 2600 : 2100, decay: 0.011, q: 18 },
-      5: { type: 'triangle', freq: accent ? 3200 : 2750, decay: 0.01, q: 22 },
+      0: { type: 'square', freq: 1800, decay: 0.02, q: 8 },
+      1: { type: 'triangle', freq: 1250, decay: 0.028, q: 4 },
+      2: { type: 'square', freq: 760, decay: 0.016, q: 14 },
+      3: { type: 'sawtooth', freq: 540, decay: 0.024, q: 7 },
+      4: { type: 'square', freq: 2100, decay: 0.011, q: 18 },
+      5: { type: 'triangle', freq: 2750, decay: 0.01, q: 22 },
     };
 
     const p = profiles[state.playState] || profiles[0];
@@ -383,20 +359,6 @@ class WebMetronome {
     osc.stop(time + Math.max(0.04, p.decay + 0.01));
   }
 
-  clickAccent(time) {
-    const buffer = this.buffers.get(ACCENT_SOUND_FILE);
-    if (buffer) {
-      const source = this.audioCtx.createBufferSource();
-      const gain = this.audioCtx.createGain();
-      source.buffer = buffer;
-      gain.gain.setValueAtTime(Math.min(1.8, 1.2 * state.volume), time);
-      source.connect(gain);
-      gain.connect(this.audioCtx.destination);
-      source.start(time);
-      return;
-    }
-    this.click(time, true);
-  }
 }
 
 const metronome = new WebMetronome();
@@ -418,10 +380,10 @@ function loadState() {
       ...parsed,
       bpm: clamp(parsed.bpm ?? defaultState.bpm, BPM_MIN, BPM_MAX),
       numBeats: clamp(parsed.numBeats ?? defaultState.numBeats, BEATS_MIN, BEATS_MAX),
-      beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter((n) => Number.isInteger(n)) : defaultState.beatMask,
+      beatMask: Array.isArray(parsed.beatMask) ? parsed.beatMask.filter((n) => Number.isInteger(n) && n !== 0) : defaultState.beatMask,
       playState: Number.isInteger(parsed.playState) ? clamp(parsed.playState, 0, metSoundList.length - 1) : 0,
       volume: typeof parsed.volume === 'number' ? Math.max(0, Math.min(2, parsed.volume)) : defaultState.volume,
-      accentEnabled: typeof parsed.accentEnabled === 'boolean' ? parsed.accentEnabled : defaultState.accentEnabled,
+      firstBeatAccent: typeof parsed.firstBeatAccent === 'boolean' ? parsed.firstBeatAccent : defaultState.firstBeatAccent,
       bpmPresets: savedBpmPresets?.bpmPresets ?? normalizeBpmPresets(parsed.bpmPresets),
       activePresetIndex: savedBpmPresets?.activePresetIndex ?? normalizeActivePresetIndex(parsed.activePresetIndex, parsed.bpmPresets, parsed.bpm),
     };
@@ -455,7 +417,7 @@ function saveState() {
         beatMask: [...state.beatMask].sort((a, b) => a - b),
         playState: state.playState,
         volume: state.volume,
-        accentEnabled: state.accentEnabled,
+        firstBeatAccent: state.firstBeatAccent,
         bpmPresets: state.bpmPresets,
         activePresetIndex: state.activePresetIndex,
       })
@@ -497,8 +459,6 @@ function normalizeActivePresetIndex(index, presets, bpm) {
 function render() {
   els.tempoField.textContent = String(state.bpm);
   els.playStateBtn.style.transform = `rotate(${state.playState * 60}deg)`;
-  els.accentBtn.classList.toggle('is-active', state.accentEnabled);
-  els.accentBtn.setAttribute('aria-pressed', String(state.accentEnabled));
   els.volumeSlider.value = String(state.volume);
   els.playHint.textContent = '';
   els.app.classList.toggle('is-playing', state.isPlaying);
@@ -594,7 +554,14 @@ function renderBeats() {
     btn.className = 'beat-btn';
     btn.dataset.index = String(i);
 
-    btn.textContent = state.beatMask.includes(i) ? '◽️' : '◾️';
+    if (i === 0) {
+      btn.textContent = state.firstBeatAccent ? '◼️' : '◾️';
+      btn.classList.add('first-beat');
+      btn.classList.toggle('is-accent', state.firstBeatAccent);
+      btn.setAttribute('aria-label', state.firstBeatAccent ? 'First beat, accented' : 'First beat, normal volume');
+    } else {
+      btn.textContent = state.beatMask.includes(i) ? '◽️' : '◾️';
+    }
 
 
     btn.addEventListener('click', () => onBeatTap(i));
@@ -608,6 +575,13 @@ function renderBeats() {
 }
 
 function onBeatTap(index) {
+  if (index === 0) {
+    state.firstBeatAccent = !state.firstBeatAccent;
+    saveState();
+    render();
+    metronome.restartIfPlaying();
+    return;
+  }
   toggleBeatMask(index);
 }
 
@@ -677,20 +651,12 @@ function changeSound() {
   metronome.restartIfPlaying();
 }
 
-function toggleAccent() {
-  state.accentEnabled = !state.accentEnabled;
-  if (state.accentEnabled) metronome.warmAudioFile(ACCENT_SOUND_FILE);
-  saveState();
-  render();
-  metronome.restartIfPlaying();
-}
-
 function resetPrefs() {
   state.bpm = 120;
   state.numBeats = 4;
-  state.beatMask = [0, 2];
+  state.beatMask = [2];
   state.playState = 0;
-  state.accentEnabled = false;
+  state.firstBeatAccent = false;
   saveState();
   render();
   metronome.restartIfPlaying();
@@ -829,7 +795,6 @@ function attachEvents() {
 
   els.playStateBtn.addEventListener('click', changeSound);
   els.tapTempoBtn.addEventListener('click', doTapTempo);
-  els.accentBtn.addEventListener('click', toggleAccent);
   els.prefsResetBtn.addEventListener('click', resetPrefs);
   let focusTimerDragMoved = false;
   let focusTimerLongPressTriggered = false;
