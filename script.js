@@ -322,7 +322,7 @@ class WebMetronome {
       const source = ctx.createBufferSource();
       const gain = ctx.createGain();
       source.buffer = buffer;
-      gain.gain.setValueAtTime((accent ? 6.4 : 4) * state.volume, time);
+      gain.gain.setValueAtTime((accent ? 8 : 4) * state.volume, time);
       source.connect(gain);
       gain.connect(ctx.destination);
       source.start(time);
